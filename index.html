@@ -90,6 +90,8 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
 .center-logo{width:100%;max-width:340px;height:170px;object-fit:contain}
 @media(max-width:900px){.top{grid-template-columns:minmax(0,1fr) minmax(190px,290px) minmax(0,1fr)}.center-logo{max-width:290px;height:145px}}
 @media(max-width:580px){.top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}.center-logo{grid-row:1;grid-column:1/-1;width:min(100%,320px);max-width:320px;height:auto;aspect-ratio:2/1}}
+
+.matchups-page-link{color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(128,255,69,.48);border-radius:12px;padding:12px 16px;box-shadow:0 0 18px rgba(128,255,69,.10);transition:background .2s,border-color .2s}.matchups-page-link:hover,.matchups-page-link:focus-visible{color:#80ff45;background:rgba(128,255,69,.09);border-color:#80ff45}
 </style>
 </head>
 <body>
@@ -110,8 +112,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
     <div class="metric"><div class="k">Matchups covered</div><div class="v" id="mGames">—</div><div class="s">Upcoming games</div></div>
   </section>
 
-  <details><summary class="sectionhead" style="cursor:pointer"><h3>Upcoming matchups ▾</h3><span id="scheduleNote">Expand schedule · times in Eastern Time</span></summary>
-  <div class="matchups" id="matchups"></div></details>
+  <div class="sectionhead"><h3><a id="upcomingMatchupsLink" href="./matchups.html?sport=NBA" class="matchups-page-link">Upcoming matchups <span aria-hidden="true">↗</span></a></h3><span>View the full schedule · Eastern Time</span></div>
 
   <div class="sectionhead"><h3>Kalshi &amp; FanDuel prop research</h3><span id="resultLabel">Loading verified listings…</span></div>
   <div class="search-row"><input class="control search" id="search" placeholder="Search player, team, opponent…" /></div>
@@ -151,7 +152,7 @@ const TEAM_NAME_COLORS={ATL:'#E03A3E',BOS:'#44C58A',BKN:'#FFFFFF',CHA:'#56C5D0',
 const NFL_TEAM_NAME_COLORS={ARI:'#F45570',ATL:'#EE3C53',BAL:'#B197FC',BUF:'#5196FF',CAR:'#00B8EA',CHI:'#FF8A32',CIN:'#FB4F14',CLE:'#FF7D32',DAL:'#A5BDE0',DEN:'#FB4F14',DET:'#35A9E0',GB:'#FFB612',HOU:'#E94B65',IND:'#5794DA',JAX:'#35C4BC',KC:'#F3495F',LAC:'#36B7FF',LAR:'#FFD100',LV:'#C4CED4',MIA:'#20C6B6',MIN:'#BB97E8',NE:'#E46879',NO:'#D3BC8D',NYG:'#6098FF',NYJ:'#46BA8D',PHI:'#37B8AE',PIT:'#FFB612',SEA:'#69BE28',SF:'#F05466',TB:'#FF4444',TEN:'#69B8F1',WAS:'#FFB612'};
 function playerColor(team){const colors=sport==='NFL'?NFL_TEAM_NAME_COLORS:TEAM_NAME_COLORS;return colors[String(team||'').toUpperCase()]||'#FFFFFF';}
 function populateFilters(){const sf=document.getElementById('statFilter'),oldS=sf.value;sf.innerHTML='<option value="">All stat types</option>'+unique([...rows,...marketRows].map(r=>r.stat)).map(s=>'<option>'+esc(s)+'</option>').join('');sf.value=oldS;const mf=document.getElementById('matchFilter'),tf=document.getElementById('teamFilter');const oldM=mf.value,oldT=tf.value;mf.innerHTML='<option value="">All matchups</option>'+unique(games.map(g=>g.match)).map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');tf.innerHTML='<option value="">All teams</option>'+unique(rows.map(x=>x.team)).map(t=>`<option>${esc(t)}</option>`).join('');mf.value=oldM;tf.value=oldT;}
-function renderMatchups(){document.getElementById('matchups').innerHTML=games.slice(0,60).map(g=>`<div class="match"><div><b>${esc(g.match)}</b><small>${esc(g.date)} · ${g.time?new Date(g.time).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'}):'TBD'} ET</small></div></div>`).join('')||'<div class="empty">No upcoming schedule loaded yet.</div>';}
+function renderMatchups(){const link=document.getElementById('upcomingMatchupsLink');if(link)link.href='./matchups.html?sport='+encodeURIComponent(sport);}
 function marketFresh(){return Date.now()-Date.parse(marketMeta.updatedAt)<90*60*1000 && Date.now()-Date.parse(marketMeta.statsUpdatedAt)<48*60*60*1000;}
 function selectedRows(){return manual?rows:marketRows.filter(x=>Date.parse(x.gameTime)>Date.now()&&marketFresh()&&x.shortlist);}
 function render(){const q=document.getElementById('search').value.toLowerCase(),m=document.getElementById('matchFilter').value,s=document.getElementById('statFilter').value,t=document.getElementById('teamFilter').value,min=document.getElementById('minFive').checked,perfect=document.getElementById('perfectOnly').checked;
