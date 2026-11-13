@@ -38,7 +38,7 @@ thead{background:#101010}td{border-top-color:#333}tbody tr:hover{background:#161
 </head>
 <body>
 <div id="starfield" aria-hidden="true"></div>
-<canvas id="spaceFlights" aria-hidden="true"></canvas>
+<svg id="spaceFlights" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
 <div class="wrap">
   <header class="top">
     <div class="brand"><div><div class="eyebrow">NBA &amp; NFL player research</div><h1>Prop Labs</h1></div></div>
@@ -122,6 +122,6 @@ setInterval(render,60000);
 <script>
 (function(){const field=document.getElementById('starfield');let seed=73621;const rnd=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);const frag=document.createDocumentFragment();for(let i=0;i<165;i++){const star=document.createElement('i');star.className='star';star.style.left=(rnd()*100).toFixed(2)+'%';star.style.top=(rnd()*100).toFixed(2)+'%';star.style.setProperty('--sz',(0.7+rnd()*2.4).toFixed(2)+'px');star.style.setProperty('--op',(0.22+rnd()*.64).toFixed(2));star.style.setProperty('--glow',(2+rnd()*10).toFixed(1)+'px');star.style.setProperty('--dur',(1.5+rnd()*5).toFixed(2)+'s');star.style.setProperty('--delay',(-rnd()*7).toFixed(2)+'s');frag.appendChild(star)}field.appendChild(frag)})();
 </script>
-<script src="space-flight.js"></script>
+<script src="space-flight.js?v=3"></script>
 </body>
 </html>
