@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [index.html, .github/workflows/deploy-pages.yml]
+    paths: [index.html, space-flight.js, .github/workflows/deploy-pages.yml]
 permissions:
   contents: read
   pages: write
@@ -33,7 +33,7 @@ jobs:
           assert d.get('status') == 'ok' and d.get('verified') is True and d.get('rows'), 'No verified data to deploy'
           PY
           mkdir -p _site/data
-          cp index.html _site/
+          cp index.html space-flight.js _site/
           cp data/props.json _site/data/
           cp data/markets.json _site/data/
           cp data/nfl_props.json data/nfl_markets.json _site/data/
