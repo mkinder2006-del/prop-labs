@@ -1,7 +1,7 @@
 name: Deploy verified Prop Labs dashboard
 on:
   workflow_run:
-    workflows: ['Update Prop Labs NBA data']
+    workflows: ['Update Prop Labs NBA data', 'Update Prop Labs NFL data']
     types: [completed]
   workflow_dispatch:
   push:
@@ -36,6 +36,7 @@ jobs:
           cp index.html _site/
           cp data/props.json _site/data/
           cp data/markets.json _site/data/
+          cp data/nfl_props.json data/nfl_markets.json _site/data/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
