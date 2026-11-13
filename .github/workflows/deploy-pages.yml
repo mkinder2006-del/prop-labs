@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [index.html, space-flight.js, .github/workflows/deploy-pages.yml]
+    paths: [index.html, space-flight.js, assets/**, .github/workflows/deploy-pages.yml]
 permissions:
   contents: read
   pages: write
@@ -34,6 +34,7 @@ jobs:
           PY
           mkdir -p _site/data
           cp index.html space-flight.js _site/
+          cp -R assets _site/
           cp data/props.json _site/data/
           cp data/markets.json _site/data/
           cp data/nfl_props.json data/nfl_markets.json _site/data/

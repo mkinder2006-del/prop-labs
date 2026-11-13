@@ -44,6 +44,15 @@ thead{background:#101010}td{border-top-color:#333}tbody tr:hover{background:#161
 
 /* Green column guides keep the prop board easy to scan. */
 .tablebox th:not(:last-child),.tablebox td:not(:last-child){border-right:1px solid rgba(128,255,69,.32)}
+
+/* Centered mission emblem with status controls aligned to the right edge. */
+.top{display:grid;grid-template-columns:minmax(0,1fr) 144px minmax(0,1fr);align-items:center;min-height:144px;gap:18px;margin-bottom:12px}
+.center-logo{display:block;width:144px;height:144px;object-fit:contain;justify-self:center}
+.topright{justify-self:end;justify-content:flex-end;min-width:0}
+.refresh-control{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid rgba(128,255,69,.42);border-radius:50%;background:#050505;color:#80ff45;font:24px/1 system-ui;cursor:pointer;box-shadow:0 0 14px rgba(128,255,69,.12)}
+.refresh-control:hover{background:#12200a}.refresh-control:focus-visible{outline:2px solid #80ff45;outline-offset:3px}
+@media(max-width:900px){.topright{flex-direction:column;align-items:flex-end;gap:6px}.top{grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr)}.center-logo{width:120px;height:120px}}
+@media(max-width:580px){.top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-height:0}.center-logo{grid-row:1;grid-column:1/-1;width:130px;height:130px}.brand{grid-row:2;grid-column:1}.topright{grid-row:2;grid-column:2;flex-direction:row;align-items:center;flex-wrap:wrap}.topright .statuspill{font-size:9px}.refresh-control{width:30px;height:30px;font-size:22px}}
 </style>
 </head>
 <body>
@@ -52,7 +61,8 @@ thead{background:#101010}td{border-top-color:#333}tbody tr:hover{background:#161
 <div class="wrap">
   <header class="top">
     <div class="brand"><div><div class="eyebrow">Sport player researcher</div><h1>Prop Labs</h1></div></div>
-    <div class="topright"><span class="statuspill" id="feedStatus">● WAITING FOR DATA</span><span class="datepill" id="feedDate">Updates every 30 minutes</span><button class="rocket-refresh" type="button" onclick="window.location.reload()" title="Refresh Prop Labs" aria-label="Refresh Prop Labs page"><svg viewBox="0 0 100 100" width="66" height="66" aria-hidden="true"><circle cx="74" cy="24" r="19" fill="#e8e8e8"/><circle cx="68" cy="17" r="4" fill="#a3a3a3"/><circle cx="83" cy="29" r="5" fill="#a3a3a3"/><g transform="rotate(36 49 51)"><path d="M44 73 L35 90 L48 82 L61 90 L54 73" fill="#ff773d"/><path d="M42 65 L29 75 L31 54 L42 49 M58 65 L71 75 L69 54 L58 49" fill="#d9d9d9" stroke="white" stroke-width="2"/><path d="M50 11 C29 31 34 56 39 75 L61 75 C66 56 71 31 50 11Z" fill="#ffffff" stroke="#bcbcbc" stroke-width="2"/><circle cx="50" cy="44" r="10" fill="#000" stroke="#777" stroke-width="3"/><circle cx="50" cy="44" r="5" fill="#ffffff"/><path d="M42 77 L50 96 L58 77" fill="#ffbd59"/></g></svg></button></div>
+    <img class="center-logo" src="assets/prop-labs-logo.webp" alt="Prop Labs PL rocket flying toward the moon" width="144" height="144" />
+    <div class="topright"><span class="statuspill" id="feedStatus">● WAITING FOR DATA</span><span class="datepill" id="feedDate">Updates every 30 minutes</span><button class="refresh-control" type="button" onclick="window.location.reload()" title="Refresh Prop Labs" aria-label="Refresh Prop Labs page">↻</button></div>
   </header>
   
   <div class="toolbar" style="justify-content:flex-end"><div style="display:flex;align-items:center;gap:10px"><label class="toggle" for="sportFilter">Sport</label><select class="control" id="sportFilter" aria-label="Sport"><option value="NBA">NBA Basketball</option><option value="NFL">NFL Football</option></select></div></div>
