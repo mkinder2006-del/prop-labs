@@ -39,3 +39,4 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+# Diagnostic trigger: verify scheduled NBA ingestion and market matching on 2026-11-13.
