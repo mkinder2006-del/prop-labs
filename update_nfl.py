@@ -25,7 +25,7 @@ FIELDS={'PASS_YDS':'passing_yards','PASS_TD':'passing_tds','RUSH_YDS':'rushing_y
 LABELS={'PASS_YDS':'Passing yards','PASS_TD':'Passing touchdowns','RUSH_YDS':'Rushing yards',
  'REC_YDS':'Receiving yards','REC':'Receptions','SCRIM_YDS':'Rush + receiving yards'}
 LADDERS={'PASS_YDS':range(150,401,25),'PASS_TD':range(1,5),'RUSH_YDS':[25,40,50,60,75,100,125],
- 'REC_YDS':[25,40,50,60,75,100,125],'REC':range(1,11),'SCRIM_YDS':range(25,201,25)}
+ 'REC_YDS':[25,40,50,60,75,100,125],'REC':range(2,11),'SCRIM_YDS':range(25,201,25)}
 
 def team(s): return {'LA':'LAR','STL':'LAR','SD':'LAC','OAK':'LV','WSH':'WAS'}.get(s,s)
 def integer(v):
@@ -156,9 +156,15 @@ def main():
             for threshold in LADDERS[key]:
                 hits=sum(v>=threshold for v in vals);rate=round(hits/len(vals)*100,1)
                 if rate<80: continue
+                def recent_record(n):
+                    sample=vals[-n:]
+                    count=sum(v>=threshold for v in sample)
+                    return {'hits':count,'games':len(sample),'rate':round(100*count/len(sample),1)}
                 rows.append({'player':latest['player'],'team':latest['team'],'position':latest['position'],
                   'matchup':matchups.get(latest['team'],'—'),'stat':label,'threshold':threshold,
                   'games':len(vals),'hits':hits,'rate':rate,'avg':round(sum(vals)/len(vals),1),
+                  'last5':recent_record(5),'last10':recent_record(10),'last20':recent_record(20),
+                  'sourceUrl':'https://www.nfl.com/players/',
                   'sourceType':'nflverse + ESPN verified · custom threshold'})
     result={'status':'ok','verified':True,'sport':'NFL','season':str(SEASON),'regularSeasonOnly':True,
       'updatedAt':dt.datetime.now(dt.timezone.utc).isoformat(),'gamesCached':len(cache),'playersTracked':len(histories),
