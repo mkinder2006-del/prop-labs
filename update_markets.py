@@ -72,7 +72,7 @@ def match_market(m, key, label, histories, schedule, now):
         return {'hits':hits,'games':len(v),'rate':round(hits/len(v)*100,1)}
     season=record(len(vals)); recent=record(5); last10=record(10); last20=record(20)
     # Historical screen, NOT a calibrated forecast or expected-value estimate.
-    shortlist=len(vals)>=10 and season['rate']>=80 and recent['rate']>=80 and last10['rate']>=80 and ask<=.85 and ask-bid<=.15
+    shortlist=len(vals)>=10 and season['rate']>=80 and recent['rate']>=80 and last10['rate']>=80 and ask<=.75 and ask-bid<=.15
     return {'player':latest['player'],'team':latest['team'],'position':latest['position'],
       'matchup':game['match'],'gameTime':game['time'],'stat':label,'threshold':threshold,
       'avg':round(sum(vals)/len(vals),1),'games':len(vals),'hits':season['hits'],'rate':season['rate'],
