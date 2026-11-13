@@ -26,7 +26,7 @@ def match_nfl(m,key,label,histories,schedule,now,blocked):
     row=match_market(normalized,key,label,histories,schedule,now)
     if not row or row['team'] in blocked: return None
     row['eventTicker']=m['event_ticker']
-    row['shortlist']=row['games']>=8 and row['rate']>=80 and row['last5']['rate']>=80 and row['last10']['rate']>=80 and row['priceCents']<=85 and row['spreadCents']<=15
+    row['shortlist']=row['games']>=8 and row['rate']>=80 and row['last5']['rate']>=80 and row['last10']['rate']>=80 and row['priceCents']<=75 and row['spreadCents']<=15
     row['sourceType']='Kalshi listing + nflverse/ESPN history'
     return row
 
@@ -55,7 +55,7 @@ def main():
     result={'status':'partial' if errors else 'ok','sport':'NFL','updatedAt':now.isoformat(),
       'statsUpdatedAt':props['updatedAt'],'rows':rows,'errors':errors,'marketsScanned':scanned,
       'platforms':{'Kalshi':{'status':'partial' if errors else 'connected','matched':len(rows)},'FanDuel':{'status':'unavailable','matched':0}},
-      'method':'NFL shortlist: 8+ snap-verified appearances; season, last 5 and up-to-last 10 hit rates >=80%; Yes ask <=85 cents; spread <=15 cents. Recent windows use available season appearances. Injuries and future snap counts not verified. Fees excluded. Unsupported touchdown settlement rules are not approximated.'}
+      'method':'NFL shortlist: 8+ snap-verified appearances; season, last 5 and up-to-last 10 hit rates >=80%; Yes ask <=75 cents; spread <=15 cents. Recent windows use available season appearances. Injuries and future snap counts not verified. Fees excluded. Unsupported touchdown settlement rules are not approximated.'}
     save_json(ROOT/'data/nfl_markets.json',result)
     print(f'NFL markets: {scanned} scanned; {len(rows)} matched; {sum(r["shortlist"] for r in rows)} shortlist; {len(errors)} errors',flush=True)
 if __name__=='__main__':main()
