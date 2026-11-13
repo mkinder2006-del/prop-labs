@@ -115,7 +115,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
   <div class="sectionhead"><h3><a id="upcomingMatchupsLink" href="./matchups.html?sport=NBA" class="matchups-page-link">Upcoming matchups <span aria-hidden="true">↗</span></a></h3><span>View the full schedule · Eastern Time</span></div>
   <div class="sectionhead"><h3><a id="injuryReportsLink" href="./injuries.html?sport=NBA" class="matchups-page-link">Injury reports <span aria-hidden="true">↗</span></a></h3><span>Check player availability before games</span></div>
 
-  <div class="sectionhead"><h3>Player prop consistency research</h3><span id="resultLabel">Loading historical research…</span><span class="build-label">Build 11.13 · highest hit rate first</span></div>
+  <div class="sectionhead"><h3>Player prop consistency research</h3><span id="resultLabel">Loading historical research…</span><span class="build-label">Build 11.13 · curated top 300</span></div>
   <div class="search-row"><input class="control search" id="search" placeholder="Search player, team, opponent…" /></div>
   <div class="toolbar">
     <div class="filters">
@@ -158,21 +158,46 @@ function marketFresh(){return Date.now()-Date.parse(marketMeta.updatedAt)<90*60*
 // Plausible baseline thresholds, not a claim of live sportsbook availability.
 const RESEARCH_FLOORS_NBA={'Points':10,'Rebounds':5,'Assists':4,'3-pointers':2,'Steals':1,'Blocks':1,'Points + Rebounds':15,'Points + Assists':15,'Rebounds + Assists':8,'PRA':20};
 const RESEARCH_FLOORS_NFL={'Passing Yards':150,'Rushing Yards':25,'Receiving Yards':25,'Receptions':2,'Passing Touchdowns':1,'Rushing Touchdowns':1,'Receiving Touchdowns':1,'Completions':12,'Pass Attempts':20,'Rush Attempts':6};
-function plausibleThreshold(r){const floor=(sport==='NFL'?RESEARCH_FLOORS_NFL:RESEARCH_FLOORS_NBA)[r.stat];return floor===undefined?Number(r.threshold)>=1:Number(r.threshold)>=floor;}
+// Only established, commonly followed player-prop categories are eligible.
+const CORE_STATS_NBA=new Set(['Points','Rebounds','Assists','3-pointers']);
+const CORE_STATS_NFL=new Set(['passing yards','rushing yards','receiving yards','receptions','passing touchdowns','rushing touchdowns']);
+function plausibleThreshold(r){
+ const stat=String(r.stat||'');
+ const core=sport==='NFL'?CORE_STATS_NFL:CORE_STATS_NBA;
+ const floor=sport==='NFL'?RESEARCH_FLOORS_NFL:RESEARCH_FLOORS_NBA;
+ const normalized=sport==='NFL'?stat.toLowerCase():stat;
+ const minimum=sport==='NFL'?{'passing yards':150,'rushing yards':25,'receiving yards':25,'receptions':2,'passing touchdowns':1,'rushing touchdowns':1}[normalized]:floor[normalized];
+ return core.has(normalized)&&Number.isFinite(Number(r.threshold))&&Number(r.threshold)>=minimum;
+}
 function selectedRows(){return rows.filter(plausibleThreshold);}
 const MAX_RECOMMENDED_ASK_CENTS=75; // A three-leg combination at 75c each returns at least ~2.37x gross, before fees.
 function marketFor(x){return marketRows.find(m=>m.player===x.player&&m.team===x.team&&m.stat===x.stat&&Number(m.threshold)===Number(x.threshold)&&Date.parse(m.gameTime)>Date.now()&&marketFresh()&&Number(m.priceCents)>0&&Number(m.priceCents)<=MAX_RECOMMENDED_ASK_CENTS&&Number(m.spreadCents)<=15&&m.sourceUrl)||null;}
 function recentText(x){return [x.last5,x.last10,x.last20].map(r=>r&&Number.isFinite(Number(r.hits))&&Number.isFinite(Number(r.games))?r.hits+'/'+r.games:'Pending refresh').join(' · ');}
 function statSource(x){const url=x.sourceUrl&&/^https:\/\/(www\.)?(espn\.com|nfl\.com)\//.test(x.sourceUrl)?x.sourceUrl:(sport==='NBA'?'https://www.espn.com/nba/':'https://www.nfl.com/stats/');return '<a class="source-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+(sport==='NBA'?'ESPN stats':'NFL stats')+'</a>';}
 function render(){const q=document.getElementById('search').value.toLowerCase(),m=document.getElementById('matchFilter').value,s=document.getElementById('statFilter').value,t=document.getElementById('teamFilter').value,min=document.getElementById('minFive').checked;
-let pool=selectedRows();let out=pool.filter(x=>(!q||[x.player,x.team,x.position,x.matchup,x.stat].join(' ').toLowerCase().includes(q))&&(!m||x.matchup===m)&&(!s||x.stat===s)&&(!t||x.team===t)&&(!min||Number(x.games)>=5)&&Number(x.rate)>=90&&Number(x.rate)<=100);
-// Rank by observed historical hit rate, highest to lowest; sample size breaks ties.
-out.sort((a,b)=>Number(b.rate)-Number(a.rate)||Number(b.games)-Number(a.games)||Number(b.last10?.rate||0)-Number(a.last10?.rate||0)||a.player.localeCompare(b.player)||a.stat.localeCompare(b.stat)||Number(a.threshold)-Number(b.threshold));
-const visible=out; // Display every qualifying 90–100% row in descending order; no silent top-300 truncation.
-const bandCount=out.filter(x=>Number(x.rate)<100).length;
-const perfectRows=out.filter(x=>Number(x.rate)===100);
+let pool=selectedRows();
+let eligible=pool.filter(x=>(!q||[x.player,x.team,x.position,x.matchup,x.stat].join(' ').toLowerCase().includes(q))&&(!m||x.matchup===m)&&(!s||x.stat===s)&&(!t||x.team===t)&&(!min||Number(x.games)>=5)&&Number(x.rate)>=90&&Number(x.rate)<=100&&Number(x.games)>=8);
+// One meaningful threshold per player and stat: prefer confirmed affordable markets, then stronger samples.
+const bestByStat=new Map();
+for(const x of eligible){
+ const key=x.player+'|'+x.team+'|'+x.stat;
+ const old=bestByStat.get(key);
+ const score=y=>(marketFor(y)?1000000:0)+Math.min(Number(y.games),82)*100+Number(y.threshold);
+ if(!old||score(x)>score(old))bestByStat.set(key,x);
+}
+let out=[...bestByStat.values()];
+const rank=(a,b)=>Number(b.rate)-Number(a.rate)||Number(b.games)-Number(a.games)||Number(b.last10?.rate||0)-Number(a.last10?.rate||0)||a.player.localeCompare(b.player)||a.stat.localeCompare(b.stat);
+// Reserve up to half the 300 slots for qualifying 90–99.9% entries, then sort the final list descending.
+const perfect=out.filter(x=>Number(x.rate)===100).sort(rank);
+const near=out.filter(x=>Number(x.rate)<100).sort(rank);
+let visible=[...perfect.slice(0,Math.min(150,Math.max(0,300-near.length))),...near.slice(0,Math.min(150,near.length))];
+const used=new Set(visible);
+visible.push(...[...perfect,...near].filter(x=>!used.has(x)).slice(0,300-visible.length));
+visible.sort(rank);
+const bandCount=visible.filter(x=>Number(x.rate)<100).length;
+const perfectRows=visible.filter(x=>Number(x.rate)===100);
 document.getElementById('tbody').innerHTML=visible.map(x=>`<tr><td><span class="player" style="color:${playerColor(x.team)}">${esc(x.player)}</span><span class="sub">${esc(x.position)} · ${esc(x.team)}</span></td><td><span class="teamtag">${esc(x.team)}</span></td><td>${esc(x.position)}</td><td>${esc(x.matchup)}</td><td><span class="prop">${esc(x.threshold)}+ ${esc(x.stat)}</span>${marketFor(x)?'<span class="sub">Kalshi · price ≤75¢ verified</span>':'<span class="sub">Statistical research only · not a vetted bet</span>'}</td><td class="avg">${Number(x.avg).toFixed(1)}</td><td class="record">${x.hits}/${x.games}</td><td><span class="hit ${Number(x.rate)>=90?'hit-good':'hit-bad'}">${Number(x.rate).toFixed(Number(x.rate)%1?1:0)}%</span></td><td>${recentText(x)}</td><td>${marketFor(x)?esc(marketFor(x).priceCents)+'¢ Yes<span class="sub">Kalshi · '+esc(marketFor(x).spreadCents)+'¢ spread</span>':'No value-qualified live listing'}</td><td>${statSource(x)+(marketFor(x)?'<span class="sub"><a class="source-link" href="'+esc(marketFor(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Kalshi market</a> · checked '+esc(new Date(marketFor(x).observedAt).toLocaleString())+'</span>':'<span class="sub">No qualifying live price (≤75¢)</span>')}</td></tr>`).join('');
-document.getElementById('empty').hidden=out.length!==0;document.getElementById('resultLabel').textContent=`${out.length.toLocaleString()} qualifying props · ${bandCount.toLocaleString()} at 90–99.9% · ${perfectRows.length.toLocaleString()} at 100% · showing all ${visible.length}`;document.getElementById('footCount').textContent=`${out.length.toLocaleString()} historical research rows · ${pool.length.toLocaleString()} tracked thresholds`;
+document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} curated core props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · highest hit rate first`;document.getElementById('footCount').textContent=`${out.length.toLocaleString()} historical research rows · ${pool.length.toLocaleString()} tracked thresholds`;
 const people=[...new Map(pool.map(x=>[x.player+'|'+x.team,x])).values()];document.getElementById('mPlayers').textContent=people.length.toLocaleString();document.getElementById('mProps').textContent=marketRows.filter(x=>Date.parse(x.gameTime)>Date.now()&&marketFresh()&&Number(x.priceCents)>0&&Number(x.priceCents)<=MAX_RECOMMENDED_ASK_CENTS&&Number(x.spreadCents)<=15).length.toLocaleString();document.getElementById('mSample').textContent=pool.length?pool.reduce((n,x)=>Math.max(n,Number(x.games)||0),0)+' games':'—';document.getElementById('mGames').textContent=games.length.toLocaleString();
 }
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
