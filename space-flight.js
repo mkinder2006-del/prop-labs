@@ -58,6 +58,13 @@
     if(motion.matches){ships=[];lasers=[];sparks=[];ctx.clearRect(0,0,width,height);return;}
     if(!document.hidden)frame=requestAnimationFrame(tick);
   }
-  resize();nextSolo=1.5;nextBattle=7;
+  resize();nextSolo=12;nextBattle=26;
+  if(!motion.matches){
+    spawn(false);ships[0].x=width*.22;
+    const first=ships.length;spawn(true);
+    const lead=ships[first];lead.x=width*.7;
+    for(let i=first+1;i<ships.length;i++)ships[i].x=lead.x-Math.sign(lead.vx)*(135+(i-first-1)*80);
+    for(const ship of ships)drawShip(ship);
+  }
   window.addEventListener('resize',resize,{passive:true});document.addEventListener('visibilitychange',resume);motion.addEventListener('change',resume);resume();
 })();
