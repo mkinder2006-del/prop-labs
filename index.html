@@ -32,8 +32,15 @@ thead{background:#101010}td{border-top-color:#333}tbody tr:hover{background:#161
 .rocket-refresh{border:1px solid #555;background:rgba(0,0,0,.7);border-radius:18px;display:grid;place-items:center;width:76px;height:76px;padding:4px;cursor:pointer;transition:transform .2s,box-shadow .2s}
 .rocket-refresh:hover{transform:translateY(-3px);box-shadow:0 0 24px rgba(255,255,255,.25)}.rocket-refresh:focus-visible{outline:2px solid white;outline-offset:3px}
 @media(max-width:580px){.rocket-refresh{width:60px;height:60px}.rocket-refresh svg{width:53px;height:53px}.topright{gap:6px}.statuspill{font-size:9px;padding:6px 8px}}
-#spaceFlights{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;opacity:.72}
+#spaceFlights{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.72}
 @media(prefers-reduced-motion:reduce){#spaceFlights{display:none}}
+
+/* Soft lime accent light; ships stay below the content layer. */
+.brand h1{color:#b8f34a;text-shadow:0 0 13px rgba(184,243,74,.16)}
+.metric,.panel,.tablebox,.match,.notice,.control,.btn,.datepill,.statuspill,.rocket-refresh,.teamtag,.type{
+  box-shadow:0 0 0 1px rgba(184,243,74,.035),0 0 14px rgba(184,243,74,.055),0 5px 22px rgba(145,211,48,.025);
+}
+.metric,.panel,.tablebox,.match,.notice{border-color:rgba(184,243,74,.22)}
 </style>
 </head>
 <body>
@@ -41,7 +48,7 @@ thead{background:#101010}td{border-top-color:#333}tbody tr:hover{background:#161
 <svg id="spaceFlights" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
 <div class="wrap">
   <header class="top">
-    <div class="brand"><div><div class="eyebrow">NBA &amp; NFL player research</div><h1>Prop Labs</h1></div></div>
+    <div class="brand"><div><div class="eyebrow">Sport player researcher</div><h1>Prop Labs</h1></div></div>
     <div class="topright"><span class="statuspill" id="feedStatus">● WAITING FOR DATA</span><span class="datepill" id="feedDate">Updates every 30 minutes</span><button class="rocket-refresh" type="button" onclick="window.location.reload()" title="Refresh Prop Labs" aria-label="Refresh Prop Labs page"><svg viewBox="0 0 100 100" width="66" height="66" aria-hidden="true"><circle cx="74" cy="24" r="19" fill="#e8e8e8"/><circle cx="68" cy="17" r="4" fill="#a3a3a3"/><circle cx="83" cy="29" r="5" fill="#a3a3a3"/><g transform="rotate(36 49 51)"><path d="M44 73 L35 90 L48 82 L61 90 L54 73" fill="#ff773d"/><path d="M42 65 L29 75 L31 54 L42 49 M58 65 L71 75 L69 54 L58 49" fill="#d9d9d9" stroke="white" stroke-width="2"/><path d="M50 11 C29 31 34 56 39 75 L61 75 C66 56 71 31 50 11Z" fill="#ffffff" stroke="#bcbcbc" stroke-width="2"/><circle cx="50" cy="44" r="10" fill="#000" stroke="#777" stroke-width="3"/><circle cx="50" cy="44" r="5" fill="#ffffff"/><path d="M42 77 L50 96 L58 77" fill="#ffbd59"/></g></svg></button></div>
   </header>
   
