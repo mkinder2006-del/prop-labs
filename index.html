@@ -115,7 +115,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
   <div class="sectionhead"><h3><a id="upcomingMatchupsLink" href="./matchups.html?sport=NBA" class="matchups-page-link">Upcoming matchups <span aria-hidden="true">↗</span></a></h3><span>View the full schedule · Eastern Time</span></div>
   <div class="sectionhead"><h3><a id="injuryReportsLink" href="./injuries.html?sport=NBA" class="matchups-page-link">Injury reports <span aria-hidden="true">↗</span></a></h3><span>Check player availability before games</span></div>
 
-  <div class="sectionhead"><h3>Player prop consistency research</h3><span id="resultLabel">Loading historical research…</span><span class="build-label">Build 11.13 · 90–100% range</span></div>
+  <div class="sectionhead"><h3>Player prop consistency research</h3><span id="resultLabel">Loading historical research…</span><span class="build-label">Build 11.13 · mixed 90–100% results</span></div>
   <div class="search-row"><input class="control search" id="search" placeholder="Search player, team, opponent…" /></div>
   <div class="toolbar">
     <div class="filters">
@@ -167,9 +167,17 @@ function statSource(x){const url=x.sourceUrl&&/^https:\/\/(www\.)?(espn\.com|nfl
 function render(){const q=document.getElementById('search').value.toLowerCase(),m=document.getElementById('matchFilter').value,s=document.getElementById('statFilter').value,t=document.getElementById('teamFilter').value,min=document.getElementById('minFive').checked;
 let pool=selectedRows();let out=pool.filter(x=>(!q||[x.player,x.team,x.position,x.matchup,x.stat].join(' ').toLowerCase().includes(q))&&(!m||x.matchup===m)&&(!s||x.stat===s)&&(!t||x.team===t)&&(!min||Number(x.games)>=5)&&Number(x.rate)>=90&&Number(x.rate)<=100);
 out.sort((a,b)=>Number(b.last10?.rate||0)-Number(a.last10?.rate||0)||Number(b.rate)-Number(a.rate)||Number(b.games)-Number(a.games)||a.player.localeCompare(b.player)||a.stat.localeCompare(b.stat)||Number(a.threshold)-Number(b.threshold));
-const visible=out.slice(0,300);
+// Ensure the 300-row display cap cannot bury all 90–99.9% records beneath perfect records.
+const nonPerfect=out.filter(x=>Number(x.rate)<100),perfectRows=out.filter(x=>Number(x.rate)===100);
+const visible=[];
+let ni=0,pi=0;
+while(visible.length<300&&(ni<nonPerfect.length||pi<perfectRows.length)){
+  if(ni<nonPerfect.length)visible.push(nonPerfect[ni++]);
+  if(visible.length<300&&pi<perfectRows.length)visible.push(perfectRows[pi++]);
+}
+const bandCount=nonPerfect.length;
 document.getElementById('tbody').innerHTML=visible.map(x=>`<tr><td><span class="player" style="color:${playerColor(x.team)}">${esc(x.player)}</span><span class="sub">${esc(x.position)} · ${esc(x.team)}</span></td><td><span class="teamtag">${esc(x.team)}</span></td><td>${esc(x.position)}</td><td>${esc(x.matchup)}</td><td><span class="prop">${esc(x.threshold)}+ ${esc(x.stat)}</span>${marketFor(x)?'<span class="sub">Kalshi · price ≤75¢ verified</span>':'<span class="sub">Statistical research only · not a vetted bet</span>'}</td><td class="avg">${Number(x.avg).toFixed(1)}</td><td class="record">${x.hits}/${x.games}</td><td><span class="hit ${Number(x.rate)>=90?'hit-good':'hit-bad'}">${Number(x.rate).toFixed(Number(x.rate)%1?1:0)}%</span></td><td>${recentText(x)}</td><td>${marketFor(x)?esc(marketFor(x).priceCents)+'¢ Yes<span class="sub">Kalshi · '+esc(marketFor(x).spreadCents)+'¢ spread</span>':'No value-qualified live listing'}</td><td>${statSource(x)+(marketFor(x)?'<span class="sub"><a class="source-link" href="'+esc(marketFor(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Kalshi market</a> · checked '+esc(new Date(marketFor(x).observedAt).toLocaleString())+'</span>':'<span class="sub">No qualifying live price (≤75¢)</span>')}</td></tr>`).join('');
-document.getElementById('empty').hidden=out.length!==0;document.getElementById('resultLabel').textContent=`${out.length.toLocaleString()} filtered research thresholds · showing first ${visible.length}`;document.getElementById('footCount').textContent=`${out.length.toLocaleString()} historical research rows · ${pool.length.toLocaleString()} tracked thresholds`;
+document.getElementById('empty').hidden=out.length!==0;document.getElementById('resultLabel').textContent=`${out.length.toLocaleString()} qualifying props · ${bandCount.toLocaleString()} at 90–99.9% · ${perfectRows.length.toLocaleString()} at 100% · showing ${visible.length}`;document.getElementById('footCount').textContent=`${out.length.toLocaleString()} historical research rows · ${pool.length.toLocaleString()} tracked thresholds`;
 const people=[...new Map(pool.map(x=>[x.player+'|'+x.team,x])).values()];document.getElementById('mPlayers').textContent=people.length.toLocaleString();document.getElementById('mProps').textContent=marketRows.filter(x=>Date.parse(x.gameTime)>Date.now()&&marketFresh()&&Number(x.priceCents)>0&&Number(x.priceCents)<=MAX_RECOMMENDED_ASK_CENTS&&Number(x.spreadCents)<=15).length.toLocaleString();document.getElementById('mSample').textContent=pool.length?pool.reduce((n,x)=>Math.max(n,Number(x.games)||0),0)+' games':'—';document.getElementById('mGames').textContent=games.length.toLocaleString();
 }
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
