@@ -84,6 +84,12 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
 .bottom{font-size:10px;line-height:1.7;gap:8px 20px;color:#c4cec2!important}
 @media(max-width:900px){.brand h1{font-size:22px}.metric .k{min-height:29px}}
 @media(max-width:580px){.wrap{padding:18px 14px 32px}.top{gap:12px}.top .brand,.top .topright{padding-top:0}.brand h1{font-size:21px}.brand .eyebrow{font-size:8px;letter-spacing:.1em}.metric{padding:15px;gap:6px}.metric .v{font-size:24px}.metric .k{font-size:9px;min-height:27px}.metric .s{font-size:10px}.sectionhead{align-items:flex-start;gap:5px}.sectionhead h3{font-size:15px}.toolbar .filters{gap:8px}.notice{padding:14px;font-size:11px}.foot,.bottom{flex-direction:column}.datepill{display:none}}
+
+/* Wide orbital wordmark: preserve original header and responsive layout */
+.top{grid-template-columns:minmax(0,1fr) minmax(220px,340px) minmax(0,1fr);min-height:170px}
+.center-logo{width:100%;max-width:340px;height:170px;object-fit:contain}
+@media(max-width:900px){.top{grid-template-columns:minmax(0,1fr) minmax(190px,290px) minmax(0,1fr)}.center-logo{max-width:290px;height:145px}}
+@media(max-width:580px){.top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}.center-logo{grid-row:1;grid-column:1/-1;width:min(100%,320px);max-width:320px;height:auto;aspect-ratio:2/1}}
 </style>
 </head>
 <body>
@@ -92,7 +98,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
 <div class="wrap">
   <header class="top">
     <div class="brand"><div><div class="eyebrow">Sport player researcher</div><h1>Prop Labs</h1></div></div>
-    <img class="center-logo" src="assets/prop-labs-logo.webp" alt="Prop Labs PL rocket flying toward the moon" width="144" height="144" />
+    <img class="center-logo" src="PROP%20Labs%20Orbital%20Logo%20%281%29.png" alt="Prop Labs white and green orbital logo" width="320" height="160" />
     <div class="topright"><span class="statuspill" id="feedStatus">● WAITING FOR DATA</span><span class="datepill" id="feedDate">Updates every 30 minutes</span><button class="refresh-control" type="button" onclick="window.location.reload()" title="Refresh Prop Labs" aria-label="Refresh Prop Labs page">↻</button></div>
   </header>
   
