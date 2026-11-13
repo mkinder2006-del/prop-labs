@@ -67,8 +67,10 @@ def extract_game(summary, event_id):
             for entry in group.get('athletes', []):
                 athlete = entry.get('athlete', {})
                 stats = entry.get('stats') or []
-                if not stats or len(stats) != len(labels):
+                if entry.get('didNotPlay'):
                     continue
+                if not stats or len(stats) != len(labels):
+                    raise ValueError('Missing stats for participating player')
                 # DNP rows typically have no numeric stat vector.
                 values = dict(zip(labels, stats))
                 def stat(*names):
@@ -84,8 +86,8 @@ def extract_game(summary, event_id):
                     three = numeric(str(values['3pt']).split('-')[0])
                 stl = stat('stl','steals')
                 blk = stat('blk','blocks')
-                if any(x is None for x in (pts,reb,ast,three,stl,blk)):
-                    continue
+                if any(x is None or x < 0 or x != int(x) for x in (pts,reb,ast,three,stl,blk)):
+                    raise ValueError('Invalid player statistics')
                 aid = str(athlete.get('id') or '')
                 if not aid:
                     continue
@@ -96,6 +98,19 @@ def extract_game(summary, event_id):
                                'STL':int(stl),'BLK':int(blk)})
     if len(result) < 8:
         raise ValueError(f'Suspiciously few player lines ({len(result)}) for {event_id}')
+    header = summary.get('header', {})
+    if str(header.get('id')) != str(event_id) or header.get('season', {}).get('type') != 2 or header.get('season', {}).get('year') != SEASON + 1:
+        raise ValueError('Box score event/season mismatch')
+    comp = header['competitions'][0]
+    if not comp.get('status', {}).get('type', {}).get('completed'):
+        raise ValueError('Game is not final')
+    if len({p['id'] for p in result}) != len(result):
+        raise ValueError('Duplicate player lines')
+    for c in comp['competitors']:
+        team = abbr(c['team']['abbreviation'])
+        lines = [p for p in result if p['team'] == team]
+        if len(lines) < 5 or sum(p['PTS'] for p in lines) != int(c['score']):
+            raise ValueError('Player points do not reconcile to final score: ' + team)
     return result
 
 def get_games_for_date(day):
@@ -104,7 +119,7 @@ def get_games_for_date(day):
 
 def derive(cache, upcoming, fetched, errors):
     histories = defaultdict(list)
-    for event in cache.values():
+    for event in sorted(cache.values(), key=lambda e: e['date']):
         if not event.get('players'):
             continue
         for p in event['players']:
@@ -142,7 +157,7 @@ def derive(cache, upcoming, fetched, errors):
                                'threshold':threshold,'avg':avg,'hits':hits,'rate':rate,
                                'sourceType':'ESPN box scores · custom threshold'})
     output.sort(key=lambda r:(-r['rate'],-r['games'],r['player'],r['stat'],r['threshold']))
-    return {'status':'ok','source':'ESPN unofficial public JSON endpoints',
+    return {'status':'ok','verified':True,'validation':'All discovered final regular-season games parsed; player points reconcile to final scores','source':'ESPN unofficial public JSON endpoints',
             'updatedAt':dt.datetime.now(dt.timezone.utc).isoformat(),
             'season':f'{SEASON}-{str(SEASON+1)[-2:]}','regularSeasonOnly':True,
             'gamesCached':len(cache),'playersTracked':len(histories),
@@ -151,6 +166,7 @@ def derive(cache, upcoming, fetched, errors):
 
 def main():
     cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+    cache = {k:v for k,v in cache.items() if v.get('season') == SEASON}
     previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else None
     errors = []
     # Cache completed games forever; recheck recent 2 days for corrections.
@@ -163,7 +179,7 @@ def main():
             daily = get_games_for_date(date)
             successful_dates += 1
             for ev in daily:
-                if ev.get('season', {}).get('type') not in (None,2):
+                if ev.get('season', {}).get('type') != 2 or ev.get('season', {}).get('year') != SEASON + 1:
                     continue
                 eid = str(ev.get('id') or '')
                 if not eid:
@@ -183,6 +199,8 @@ def main():
         date += dt.timedelta(days=1)
         # Avoid hammering ESPN; undocumented endpoints may rate-limit.
         time.sleep(0.35)
+    if errors:
+        raise RuntimeError('Incomplete schedule scan; refusing publication: ' + '; '.join(errors[:5]))
     if successful_dates == 0:
         raise RuntimeError('No schedules retrieved. Preserving previous verified output.')
     fetched = 0
@@ -192,7 +210,7 @@ def main():
         try:
             summary = get_json(BASE + '/summary?event=' + urllib.parse.quote(eid))
             players = extract_game(summary,eid)
-            cache[eid] = {'date':ev['date'],'players':players}
+            cache[eid] = {'date':ev['date'],'season':SEASON,'players':players}
             fetched += 1
         except Exception as exc:
             errors.append(f'Boxscore {eid}: {exc}')
@@ -203,6 +221,9 @@ def main():
     # Guard against incomplete historical scan being published as complete.
     if errors and previous and len(cache) < max(1, int(previous.get('gamesCached', 0) * 0.9)):
         raise RuntimeError('Suspiciously incomplete refresh; preserving previous output.')
+    if errors or set(events) - set(cache):
+        raise RuntimeError('Incomplete box scores; refusing publication: ' + '; '.join(errors[:5]))
+    cache = {k:cache[k] for k in events}
     save_json(CACHE,cache)
     result = derive(cache, sorted(upcoming,key=lambda g:g['time']), fetched, errors)
     if not result['rows']:
