@@ -159,9 +159,15 @@ def derive(cache, upcoming, fetched, errors):
                 rate = round(hits/counts*100,1)
                 if rate < 80:
                     continue
+                def recent_record(n):
+                    sample = vals[-n:]
+                    count = sum(value >= threshold for value in sample)
+                    return {'hits':count,'games':len(sample),'rate':round(100*count/len(sample),1)}
                 output.append({'player':latest['player'],'team':latest['team'],'position':latest['position'],
                                'matchup':matchups.get(latest['team'],'—'),'games':counts,'stat':label,
                                'threshold':threshold,'avg':avg,'hits':hits,'rate':rate,
+                               'last5':recent_record(5),'last10':recent_record(10),'last20':recent_record(20),
+                               'sourceUrl':'https://www.espn.com/nba/player/_/id/'+str(aid),
                                'sourceType':'ESPN box scores · custom threshold'})
     output.sort(key=lambda r:(-r['rate'],-r['games'],r['player'],r['stat'],r['threshold']))
     return {'status':'ok','verified':True,'validation':'All discovered final regular-season games parsed; player points reconcile to final scores','source':'ESPN unofficial public JSON endpoints',
