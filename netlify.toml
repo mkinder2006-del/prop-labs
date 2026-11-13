@@ -1,0 +1,15 @@
+# Prop Labs: static hosting with the existing verified GitHub Pages data feed.
+[build]
+  publish = "."
+
+# Data commits can skip CI; proxy snapshots so research stays current independently.
+[[redirects]]
+  from = "/data/*"
+  to = "https://mkinder2006-del.github.io/prop-labs/data/:splat"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "no-store"
