@@ -131,6 +131,13 @@ def derive(cache, upcoming, fetched, errors):
     metrics = [('PTS','Points'),('REB','Rebounds'),('AST','Assists'),('3PM','3-pointers'),
                ('STL','Steals'),('BLK','Blocks'),('P+R','Points + Rebounds'),
                ('P+A','Points + Assists'),('R+A','Rebounds + Assists'),('PRA','PRA')]
+    # Conservative research floors: avoid trivial 1+ point/rebound/assist lines.
+    # These are plausibility filters, NOT proof a sportsbook lists a market.
+    minimum_thresholds = {
+        'Points': 10, 'Rebounds': 5, 'Assists': 4, '3-pointers': 2,
+        'Steals': 1, 'Blocks': 1, 'Points + Rebounds': 15,
+        'Points + Assists': 15, 'Rebounds + Assists': 8, 'PRA': 20,
+    }
     output = []
     for aid, games in histories.items():
         latest = games[-1]
@@ -147,7 +154,7 @@ def derive(cache, upcoming, fetched, errors):
                 vals.append(v)
             avg = round(sum(vals)/counts,1)
             # Include all integer thresholds with >= 80% hits, so red and green rates both appear.
-            for threshold in range(1,max(vals)+1):
+            for threshold in range(minimum_thresholds[label],max(vals)+1):
                 hits = sum(v >= threshold for v in vals)
                 rate = round(hits/counts*100,1)
                 if rate < 80:
@@ -162,7 +169,7 @@ def derive(cache, upcoming, fetched, errors):
             'season':f'{SEASON}-{str(SEASON+1)[-2:]}','regularSeasonOnly':True,
             'gamesCached':len(cache),'playersTracked':len(histories),
             'schedule':upcoming,'rows':output,'fetchErrors':errors[:25],
-            'notes':'Custom integer thresholds, not sportsbook odds. Only completed games with parseable ESPN player box scores are counted; data may be incomplete if upstream is unavailable.'}
+            'notes':'Plausible research floors applied; custom integer thresholds are not verified sportsbook odds. Only completed games with parseable ESPN player box scores are counted; data may be incomplete if upstream is unavailable.'}
 
 def main():
     cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
