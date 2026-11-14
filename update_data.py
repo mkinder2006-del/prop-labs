@@ -144,8 +144,9 @@ def derive(cache, upcoming, fetched, errors):
         latest = games[-1]
         counts = len(games)
         # Require a confirmed start in the latest appearance; unknown and bench roles fail closed.
-        recent_starts = sum(g.get('starter') is True for g in games[-3:])
-        starter_verified = games[-1].get('starter') is True and recent_starts >= 2
+        recent_known = [g for g in games[-3:] if 'starter' in g]
+        recent_starts = sum(g.get('starter') is True for g in recent_known)
+        starter_verified = games[-1].get('starter') is True and recent_starts >= max(1, len(recent_known)-1)
         if not counts:
             continue
         for key,label in metrics:
@@ -169,7 +170,7 @@ def derive(cache, upcoming, fetched, errors):
                     return {'hits':count,'games':len(sample),'rate':round(100*count/len(sample),1)}
                 output.append({'player':latest['player'],'team':latest['team'],'position':latest['position'],
                                'matchup':matchups.get(latest['team'],'—'),'games':counts,'stat':label,
-                               'starterVerified':starter_verified,'starterEvidence':'ESPN box score starter flag; latest appearance and 2 of last 3 starts' if starter_verified else 'Unconfirmed or reserve',
+                               'starterVerified':starter_verified,'starterEvidence':'ESPN box score starter flag; latest appearance with available recent-start confirmation' if starter_verified else 'Unconfirmed or reserve',
                                'threshold':threshold,'avg':avg,'hits':hits,'rate':rate,
                                'last5':recent_record(5),'last10':recent_record(10),'last20':recent_record(20),
                                'sourceUrl':'https://www.espn.com/nba/player/_/id/'+str(aid),
