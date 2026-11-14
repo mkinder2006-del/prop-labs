@@ -186,7 +186,12 @@ function unique(a){return [...new Set(a)].sort();}
 const TEAM_NAME_COLORS={ATL:'#E03A3E',BOS:'#44C58A',BKN:'#FFFFFF',CHA:'#56C5D0',CHI:'#CE1141',CLE:'#FFB81C',DAL:'#4DA6FF',DEN:'#FEC524',DET:'#F25A67',GSW:'#FFC72C',HOU:'#F34B54',IND:'#FDBB30',LAC:'#F04E58',LAL:'#FDB927',MEM:'#80B4E8',MIA:'#F9A01B',MIL:'#75C69B',MIN:'#7DA9E8',NOP:'#D3B46B',NYK:'#F58426',OKC:'#4BA5F4',ORL:'#4896E8',PHI:'#4D9DE0',PHX:'#E58AF6',POR:'#F45A63',SAC:'#B997E8',SAS:'#C4CED4',TOR:'#E85B68',UTA:'#B8D951',WAS:'#EE5963'};
 const NFL_TEAM_NAME_COLORS={ARI:'#F45570',ATL:'#EE3C53',BAL:'#B197FC',BUF:'#5196FF',CAR:'#00B8EA',CHI:'#FF8A32',CIN:'#FB4F14',CLE:'#FF7D32',DAL:'#A5BDE0',DEN:'#FB4F14',DET:'#35A9E0',GB:'#FFB612',HOU:'#E94B65',IND:'#5794DA',JAX:'#35C4BC',KC:'#F3495F',LAC:'#36B7FF',LAR:'#FFD100',LV:'#C4CED4',MIA:'#20C6B6',MIN:'#BB97E8',NE:'#E46879',NO:'#D3BC8D',NYG:'#6098FF',NYJ:'#46BA8D',PHI:'#37B8AE',PIT:'#FFB612',SEA:'#69BE28',SF:'#F05466',TB:'#FF4444',TEN:'#69B8F1',WAS:'#FFB612'};
 function playerColor(team){const colors=sport==='NFL'?NFL_TEAM_NAME_COLORS:TEAM_NAME_COLORS;return colors[String(team||'').toUpperCase()]||'#FFFFFF';}
-function gameDateCT(g){if(!g||!Number.isFinite(Date.parse(g.time)))return '';return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(g.time)).replace(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/,'$3-$1-$2');}
+function gameDateCT(g){
+ if(!g||!Number.isFinite(Date.parse(g.time)))return '';
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(g.time));
+ const part=type=>parts.find(p=>p.type===type)?.value||'';
+ return part('year')+'-'+part('month')+'-'+part('day');
+}
 function futureGames(){return games.filter(g=>g&&g.home&&g.away&&Number.isFinite(Date.parse(g.time))&&Date.parse(g.time)>Date.now()-3*60*60*1000).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));}
 function populateFilters(){
  const sf=document.getElementById('statFilter'),oldS=sf.value;
