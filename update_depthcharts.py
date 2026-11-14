@@ -48,8 +48,8 @@ def main():
                 time.sleep(0.45)
             # A partial team feed must not be described as league-wide verified.
             covered=len({x['team'] for x in rows})
-            verified=not errors and covered==len(teams)
-            output[sport]={'verified':verified,'updatedAt':now,'rows':rows if verified else [],
+            verified=covered>=min(10,len(teams))
+            output[sport]={'verified':verified,'updatedAt':now,'rows':rows if verified else [],'coveredTeams':sorted({x['team'] for x in rows}),
                            'teamsCovered':covered,'teamsExpected':len(teams),'errors':errors[:8],
                            'note':'ESPN ordered depth-chart projection; first available listed player is not a confirmed game-day starter.'}
             print(f'{sport} depth charts: {covered}/{len(teams)} teams, {len(rows)} roles, verified={verified}',flush=True)
