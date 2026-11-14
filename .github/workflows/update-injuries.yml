@@ -1,0 +1,43 @@
+name: Update Prop Labs injury intelligence
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - update_injuries.py
+      - test_injuries.py
+      - .github/workflows/update-injuries.yml
+  schedule:
+    - cron: '12,42 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: prop-labs-data-update
+  cancel-in-progress: false
+jobs:
+  injuries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate injury parser
+        run: python -m unittest test_injuries
+      - name: Fetch injury designations
+        run: python update_injuries.py
+      - name: Publish injury snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/injuries.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update injury designations [skip ci]'
+            git pull --rebase -X theirs origin main
+            for attempt in 1 2 3; do
+              if git push; then break; fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              git pull --rebase -X theirs origin main
+              sleep 3
+            done
+          fi
