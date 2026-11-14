@@ -39,7 +39,10 @@ def main():
                 try:
                     payload=fetch_json(source)
                     parsed=parse_depthchart(payload,sport,TEAMS.get(abbr,abbr),source)
-                    if not parsed: raise ValueError('No relevant positions')
+                    if not parsed:
+                        if sport=='NFL' and teamid=='1':
+                            print('NFL chart shape: '+json.dumps([{'name':c.get('name'),'positions':list((c.get('positions') or {}).keys())} for c in payload.get('depthchart') or []])[:2500],flush=True)
+                        raise ValueError('No relevant positions')
                     rows.extend(parsed)
                 except Exception as exc:
                     errors.append(f'{abbr}: {str(exc)[:80]}')
