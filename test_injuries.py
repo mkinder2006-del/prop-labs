@@ -14,6 +14,12 @@ class InjuryParserTests(unittest.TestCase):
         self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]['team'],'GSW')
         self.assertEqual(rows[0]['status'],'Out')
+    def test_actual_espn_schema(self):
+        data={'injuries':[{'id':'22','displayName':'Arizona Cardinals','injuries':[
+            {'athlete':{'displayName':'Sample Receiver'},'status':'Questionable','shortComment':'Hamstring'}]}]}
+        rows=parse(data,'NFL','https://example.com',{'22':'ARI'})
+        self.assertEqual(rows[0]['team'],'ARI')
+        self.assertEqual(rows[0]['detail'],'Hamstring')
     def test_schema_fails_closed(self):
         with self.assertRaises(ValueError):
             parse({'injuries':{}},'NFL','https://example.com')
