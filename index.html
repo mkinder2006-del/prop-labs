@@ -228,7 +228,7 @@ function injuryStatus(x){
  if(!injuryUpdatedAt||Date.now()-Date.parse(injuryUpdatedAt)>24*60*60*1000)return null;
  return entry;
 }
-function unavailable(x){const i=injuryStatus(x);return i&&/^(out|inactive|ruled out|doubtful)$/i.test(String(i.status).trim());}
+function unavailable(x){const i=injuryStatus(x);return i&&/^(out|inactive|ruled out|doubtful|injured reserve)$/i.test(String(i.status).trim());}
 function selectedRows(){const approved=roleCandidates();return rows.filter(r=>plausibleThreshold(r,approved)&&!unavailable(r));}
 const MAX_RECOMMENDED_ASK_CENTS=75; // Listing price cap is a filter, not a guaranteed return or model edge.
 function marketFor(x){return marketRows.find(m=>m.player===x.player&&m.team===x.team&&m.stat===x.stat&&Number(m.threshold)===Number(x.threshold)&&Date.parse(m.gameTime)>Date.now()&&marketFresh()&&Number(m.priceCents)>0&&Number(m.priceCents)<=MAX_RECOMMENDED_ASK_CENTS&&Number(m.spreadCents)<=15&&m.sourceUrl)||null;}
