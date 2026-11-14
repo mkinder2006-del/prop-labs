@@ -17,13 +17,14 @@ STATUSES={'out':'Out','inactive':'Inactive','doubtful':'Doubtful','questionable'
 def normalized_status(raw):
     raw=str(raw or '').strip().lower()
     return STATUSES.get(raw)
-def parse(payload,sport,url):
+def parse(payload,sport,url,team_map=None):
     if not isinstance(payload,dict) or not isinstance(payload.get('injuries'),list):
         raise ValueError('Unexpected ESPN injury schema; refusing verified designation')
     result=[]
+    team_map=team_map or {}
     for team in payload['injuries']:
         info=team.get('team') or {}
-        abbr=str(info.get('abbreviation') or team.get('abbreviation') or '').upper()
+        abbr=str(info.get('abbreviation') or team.get('abbreviation') or team_map.get(str(team.get('id') or ''),'')).upper()
         abbr=TEAMS.get(abbr,abbr)
         if not abbr: continue
         for entry in team.get('injuries') or []:
@@ -31,12 +32,33 @@ def parse(payload,sport,url):
             name=athlete.get('displayName') or athlete.get('fullName')
             status=normalized_status(entry.get('status') or entry.get('type',{}).get('description'))
             if not name or not status: continue
-            detail=entry.get('details') or {}
+            detail=entry.get('shortComment') or entry.get('details') or {}
             if isinstance(detail,dict): detail=detail.get('detail') or detail.get('type') or detail.get('side') or ''
-            result.append({'player':name,'team':abbr,'status':status,'detail':str(detail),
+            result.append({'player':name,'team':abbr,'status':status,'detail':str(detail)[:600],
                            'source':'ESPN injury listing','sourceUrl':url})
     if len(result)>1500: raise ValueError('Unexpected injury volume')
     return result
+def fetch_json(url):
+    req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; PropLabs/1.0)','Accept':'application/json'})
+    with urllib.request.urlopen(req,timeout=25) as response:
+        return json.load(response)
+
+def fetch_teams(sport):
+    base=SOURCES[sport].rsplit('/',1)[0]
+    data=fetch_json(base+'/teams?limit=100')
+    entries=data.get('sports') or []
+    teams=[]
+    for group in entries:
+        for league in group.get('leagues') or []:
+            teams.extend(league.get('teams') or [])
+    mapping={}
+    for item in teams:
+        info=item.get('team') or item
+        if info.get('id') and info.get('abbreviation'):
+            mapping[str(info['id'])]=str(info['abbreviation']).upper()
+    if len(mapping)<28: raise ValueError('Incomplete team ID mapping: '+str(len(mapping)))
+    return mapping
+
 def main():
     prior={}
     if OUT.exists():
@@ -46,11 +68,9 @@ def main():
     output={}
     for sport,url in SOURCES.items():
         try:
-            req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; PropLabs/1.0)','Accept':'application/json'})
-            with urllib.request.urlopen(req,timeout=25) as response:
-                payload=json.load(response)
-            print(f'{sport} schema: root keys={list(payload)[:12]}, injuries_count={len(payload.get("injuries") or [])}; sample={json.dumps((payload.get("injuries") or [])[:1],ensure_ascii=False)[:1500]}',flush=True)
-            rows=parse(payload,sport,url)
+            payload=fetch_json(url)
+            team_map=fetch_teams(sport)
+            rows=parse(payload,sport,url,team_map)
             if not rows:
                 raise ValueError('No individual designations returned; injury coverage cannot be verified')
             output[sport]={'verified':True,'updatedAt':now,'rows':rows,'sourceUrl':url,
