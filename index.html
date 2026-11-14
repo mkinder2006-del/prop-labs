@@ -170,7 +170,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
 </div>
 <script>
 const STORAGE='propLabsManualOverrideV2';
-let rows=[],marketRows=[],marketMeta={},games=[],meta={},manual=false;
+let rows=[],marketRows=[],marketMeta={},games=[],meta={},manual=false,injuryRows=[],injuryUpdatedAt='';
 let sport=new URLSearchParams(location.search).get('sport')==='NFL'?'NFL':'NBA',loadId=0;
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function unique(a){return [...new Set(a)].sort();}
@@ -222,7 +222,14 @@ function plausibleThreshold(r,approved){
  const minimum=sport==='NFL'?{'passing yards':150,'rushing yards':25,'receiving yards':25,'receptions':2,'passing touchdowns':1,'rushing touchdowns':1}[normalized]:RESEARCH_FLOORS_NBA[normalized];
  return approved.has(r.team+'|'+r.player)&&core.has(normalized)&&Number.isFinite(Number(r.threshold))&&Number(r.threshold)>=minimum;
 }
-function selectedRows(){const approved=roleCandidates();return rows.filter(r=>plausibleThreshold(r,approved));}
+function injuryStatus(x){
+ const entry=injuryRows.find(y=>String(y.player).toLowerCase()===String(x.player).toLowerCase()&&String(y.team).toUpperCase()===String(x.team).toUpperCase());
+ if(!entry)return null;
+ if(!injuryUpdatedAt||Date.now()-Date.parse(injuryUpdatedAt)>24*60*60*1000)return null;
+ return entry;
+}
+function unavailable(x){const i=injuryStatus(x);return i&&/^(out|inactive|ruled out|doubtful)$/i.test(String(i.status).trim());}
+function selectedRows(){const approved=roleCandidates();return rows.filter(r=>plausibleThreshold(r,approved)&&!unavailable(r));}
 const MAX_RECOMMENDED_ASK_CENTS=75; // Listing price cap is a filter, not a guaranteed return or model edge.
 function marketFor(x){return marketRows.find(m=>m.player===x.player&&m.team===x.team&&m.stat===x.stat&&Number(m.threshold)===Number(x.threshold)&&Date.parse(m.gameTime)>Date.now()&&marketFresh()&&Number(m.priceCents)>0&&Number(m.priceCents)<=MAX_RECOMMENDED_ASK_CENTS&&Number(m.spreadCents)<=15&&m.sourceUrl)||null;}
 function recentText(x){return [x.last5,x.last10,x.last20].map(r=>r&&Number.isFinite(Number(r.hits))&&Number.isFinite(Number(r.games))?r.hits+'/'+r.games:'Pending refresh').join(' · ');}
@@ -236,7 +243,7 @@ function researchScore(x){
  const sample=Math.min(100,Math.round(Number(x.games)/20*100));
  const history=Math.max(0,Math.min(100,Number(x.rate)||0));
  const recent=x.last10&&Number(x.last10.games)>0?100*Number(x.last10.hits)/Number(x.last10.games):history;
- const role=x.starterVerified===true?100:45;
+ const role=unavailable(x)?0:x.starterVerified===true?100:45;
  return {total:Math.round(.35*history+.25*recent+.2*sample+.2*role),sample,history,recent:Math.round(recent),role};
 }
 function recordAlerts(){
@@ -246,12 +253,13 @@ function recordAlerts(){
  for(const key of watchlist.filter(k=>k.startsWith(sport+'|'))){
   const x=lookup.get(key),previous=lastSnapshot[key];
   if(x){
-   const current={rate:Number(x.rate),role:x.starterVerified===true?'verified':'estimated',market:marketFor(x)?.priceCents??null};
+   const current={rate:Number(x.rate),role:x.starterVerified===true?'verified':'estimated',market:marketFor(x)?.priceCents??null,injury:injuryStatus(x)?.status??null};
    if(previous){
     const changes=[];
     if(previous.rate!==current.rate)changes.push('historical hit rate '+previous.rate+'% → '+current.rate+'%');
     if(previous.role!==current.role)changes.push('role evidence '+previous.role+' → '+current.role);
     if(previous.market!==current.market)changes.push('market price '+(previous.market??'unavailable')+' → '+(current.market??'unavailable'));
+    if(previous.injury!==current.injury)changes.push('injury designation '+(previous.injury??'unknown')+' → '+(current.injury??'unknown'));
     if(changes.length)alerts.unshift({at:new Date().toISOString(),key,text:x.player+' · '+x.threshold+'+ '+x.stat+': '+changes.join('; ')});
    }
    next[key]=current;
@@ -274,6 +282,7 @@ function showResearch(x){
  '<div>Average<strong>'+Number(x.avg).toFixed(1)+'</strong></div></div>'+
  '<p><strong>Confidence components:</strong> season consistency '+score.history+'/100; last 10 '+score.recent+'/100; sample '+score.sample+'/100; role evidence '+score.role+'/100.</p>'+
  '<p><strong>Role:</strong> '+esc(x.starterEvidence||(x.starterVerified===true?'Feed-verified starter evidence':'Estimated from historical usage; not confirmed for next game'))+'</p>'+
+ '<p><strong>Injury designation:</strong> '+(injuryStatus(x)?esc(injuryStatus(x).status)+' · <a href="'+esc(injuryStatus(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Source report</a>':'No current source-verified report in feed; availability unconfirmed')+'</p>'+
  '<p><strong>Market:</strong> '+(market?esc(market.priceCents)+'¢ Yes · spread '+esc(market.spreadCents)+'¢ · observed '+esc(market.observedAt):'No fresh qualifying market. No model-derived edge is claimed.')+'</p>'+
  '<p class="research-info">This score measures research strength, not the chance a bet wins. Injury and lineup status must be independently confirmed before game time.</p>';
  document.getElementById('researchDetail').innerHTML=details;
@@ -317,6 +326,18 @@ function exportCSV(){const cols=['player','team','position','matchup','games','s
 function parseCSV(text){const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(lines.length<2)throw new Error('CSV needs a header row and at least one data row.');const parseLine=line=>{let a=[],v='',q=false;for(let i=0;i<line.length;i++){let c=line[i];if(c==='"'&&q&&line[i+1]==='"'){v+='"';i++;}else if(c==='"')q=!q;else if(c===','&&!q){a.push(v);v='';}else v+=c;}a.push(v);return a;};const heads=parseLine(lines[0]).map(x=>x.trim());const required=['player','team','position','matchup','games','stat','threshold','avg'];for(const k of required)if(!heads.includes(k))throw new Error('Missing required column: '+k);return lines.slice(1).map((line,i)=>{const vals=parseLine(line),o={};heads.forEach((h,j)=>o[h]=vals[j]??'');o.games=Number(o.games);o.threshold=Number(o.threshold);o.avg=Number(o.avg);o.hits=Number(o.hits??o.games);o.rate=Number(o.rate??(o.games?o.hits/o.games*100:0));o.sourceType=o.sourceType||'Manual CSV';if(!o.player||!o.team||!o.stat||![o.games,o.threshold,o.avg,o.hits,o.rate].every(Number.isFinite))throw new Error('Invalid CSV row '+(i+2));return o;});}
 async function loadFeed(){const request=++loadId,chosenSport=sport,prefix=sport==='NFL'?'./data/nfl_':'./data/';try{const res=await fetch(prefix+'props.json?ts='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(request!==loadId)return;if(data.status!=='ok'||data.verified!==true||!Array.isArray(data.rows)||!data.rows.length)throw Error(data.notes||'First scan has not completed');meta=data;games=data.schedule||[];rows=data.rows;manual=false;
 try{const mr=await fetch(prefix+'markets.json?ts='+Date.now(),{cache:'no-store'});if(!mr.ok)throw Error('Market feed HTTP '+mr.status);const received=await mr.json();if(request!==loadId)return;marketMeta=received;marketRows=Array.isArray(marketMeta.rows)?marketMeta.rows:[];document.getElementById('marketNotice').textContent=`Kalshi: ${marketRows.length} matched listings checked ${new Date(marketMeta.updatedAt).toLocaleString()}${marketMeta.errors?.length?' · partial coverage':''}. FanDuel: no verified feed available. ${marketFresh()?'':'Market or statistics snapshot is stale; listings hidden. '}${marketMeta.method||''}`;}catch(e){if(request!==loadId)return;marketRows=[];document.getElementById('marketNotice').textContent='Market listings unavailable: '+e.message+'. FanDuel and Kalshi availability is not inferred from custom thresholds.';}
+if(request!==loadId)return;
+injuryRows=[];injuryUpdatedAt='';
+try{
+ const ir=await fetch('./data/injuries.json?ts='+Date.now(),{cache:'no-store'});
+ if(ir.ok){
+  const report=await ir.json(),group=report[chosenSport];
+  if(group?.verified===true&&Array.isArray(group.rows)&&Date.now()-Date.parse(group.updatedAt)<24*60*60*1000){
+   injuryRows=group.rows.filter(x=>x.player&&x.team&&x.status&&/^https:\/\//.test(x.sourceUrl||''));
+   injuryUpdatedAt=group.updatedAt;
+  }
+ }
+}catch(_){/* No verified injury feed; do not infer player availability. */}
 if(request!==loadId)return;const when=new Date(data.updatedAt);document.getElementById('feedStatus').textContent='● AUTOMATIC DATA';document.getElementById('feedDate').textContent='Updated '+when.toLocaleString();document.getElementById('dataNotice').textContent=`${chosenSport==='NFL'?'nflverse + ESPN-checked NFL':'ESPN-derived NBA'} ${data.season} regular-season box scores · ${data.gamesCached} completed games cached · ${data.playersTracked} players · last successful refresh ${when.toLocaleString()}. History only; platform listings and checked prices are shown separately. ${chosenSport==='NFL'?data.notes+' Pending games: '+(data.pendingGames?.length||0)+'. Teams withheld: '+(data.blockedTeams?.join(', ')||'none')+'. ':''}${data.fetchErrors?.length?'Some ESPN requests failed; coverage may be incomplete.':''}`;populateFilters();renderMatchups();recordAlerts();render();}catch(e){if(request!==loadId)return;document.getElementById('feedStatus').textContent='● DATA NOT READY';document.getElementById('dataNotice').textContent='Automatic data is not available yet: '+e.message+'. Check the selected sport’s update workflow in GitHub Actions. No sample stats are displayed.';rows=[];marketRows=[];games=[];populateFilters();renderMatchups();render();}}
 document.querySelectorAll('#search,#matchFilter,#statFilter,#teamFilter,#minFive').forEach(el=>el.addEventListener('input',render));document.getElementById('tbody').addEventListener('click',e=>{
  const profile=e.target.closest('[data-profile]'),watch=e.target.closest('[data-watch]');
