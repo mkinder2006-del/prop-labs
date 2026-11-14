@@ -126,7 +126,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
   <div class="toolbar" style="justify-content:flex-end"><div style="display:flex;align-items:center;gap:10px"><label class="toggle" for="sportFilter">Sport</label><select class="control" id="sportFilter" aria-label="Sport"><option value="NBA">NBA Basketball</option><option value="NFL">NFL Football</option></select></div></div>
   <section class="metrics">
     <div class="metric"><div class="k">Players on the board</div><div class="v" id="mPlayers">—</div><div class="s">League-wide, completed box scores</div></div>
-    <div class="metric"><div class="k">Props on the board</div><div class="v" id="mProps">—</div><div class="s">Starter candidates · 300 maximum; unverified roles are estimates</div></div>
+    <div class="metric"><div class="k">Props on the board</div><div class="v" id="mProps">—</div><div class="s">ESPN depth-chart projections where available · historical estimates otherwise · 300 max</div></div>
     <div class="metric"><div class="k">Most game appearances</div><div class="v" id="mSample">—</div><div class="s">Largest appearance sample</div></div>
     <div class="metric"><div class="k">Matchups covered</div><div class="v" id="mGames">—</div><div class="s">Upcoming games</div></div>
   </section>
@@ -170,7 +170,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
 </div>
 <script>
 const STORAGE='propLabsManualOverrideV2';
-let rows=[],marketRows=[],marketMeta={},games=[],meta={},manual=false,injuryRows=[],injuryUpdatedAt='';
+let rows=[],marketRows=[],marketMeta={},games=[],meta={},manual=false,injuryRows=[],injuryUpdatedAt='',depthRows=[],depthUpdatedAt='',depthCovered=[];
 let sport=new URLSearchParams(location.search).get('sport')==='NFL'?'NFL':'NBA',loadId=0;
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function unique(a){return [...new Set(a)].sort();}
@@ -201,6 +201,29 @@ function roleCandidates(){
  for(const x of best.values()){if(!byTeam.has(x.team))byTeam.set(x.team,[]);byTeam.get(x.team).push(x);}
  const approved=new Set();
  for(const [team,players] of byTeam){
+  // Ordered ESPN depth charts take priority for teams with a fresh feed.
+  // Promote the next listed athlete only when a verified injury report excludes the lead.
+  if(depthCovered.includes(team)&&Date.now()-Date.parse(depthUpdatedAt)<6*60*60*1000){
+   const positions=new Map();
+   for(const item of depthRows.filter(d=>d.team===team)){
+    if(!positions.has(item.position))positions.set(item.position,[]);
+    positions.get(item.position).push(item);
+   }
+   for(const entries of positions.values()){
+    entries.sort((a,b)=>a.rank-b.rank);
+    const chosen=entries.find(item=>{
+      const candidate=players.find(p=>p.player.toLowerCase()===item.player.toLowerCase());
+      if(!candidate)return false;
+      return !unavailable(candidate);
+    });
+    // Only allow rank 2+ when rank 1 is verified unavailable.
+    if(chosen&&(chosen.rank===1||entries.slice(0,entries.findIndex(z=>z===chosen)).every(item=>{
+      const first=players.find(p=>p.player.toLowerCase()===item.player.toLowerCase());
+      return first&&unavailable(first);
+    })))approved.add(team+'|'+chosen.player);
+   }
+   continue;
+  }
   const confirmed=players.filter(p=>p.verified);
   if(confirmed.length){for(const p of confirmed)approved.add(team+'|'+p.player);continue;}
   if(sport==='NBA'){
@@ -281,7 +304,7 @@ function showResearch(x){
  '<div>Last 20<strong>'+esc(x.last20?.hits??'—')+'/'+esc(x.last20?.games??'—')+'</strong></div>'+
  '<div>Average<strong>'+Number(x.avg).toFixed(1)+'</strong></div></div>'+
  '<p><strong>Confidence components:</strong> season consistency '+score.history+'/100; last 10 '+score.recent+'/100; sample '+score.sample+'/100; role evidence '+score.role+'/100.</p>'+
- '<p><strong>Role:</strong> '+esc(x.starterEvidence||(x.starterVerified===true?'Feed-verified starter evidence':'Estimated from historical usage; not confirmed for next game'))+'</p>'+
+ '<p><strong>Role:</strong> '+esc(depthCovered.includes(x.team)?'ESPN depth-chart projection (not a confirmed game-day starter)':(x.starterEvidence||(x.starterVerified===true?'Prior box-score start':'Estimated from historical usage; not confirmed for next game')))+'</p>'+
  '<p><strong>Injury designation:</strong> '+(injuryStatus(x)?esc(injuryStatus(x).status)+' · <a href="'+esc(injuryStatus(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Source report</a>':'No current source-verified report in feed; availability unconfirmed')+'</p>'+
  '<p><strong>Market:</strong> '+(market?esc(market.priceCents)+'¢ Yes · spread '+esc(market.spreadCents)+'¢ · observed '+esc(market.observedAt):'No fresh qualifying market. No model-derived edge is claimed.')+'</p>'+
  '<p class="research-info">This score measures research strength, not the chance a bet wins. Injury and lineup status must be independently confirmed before game time.</p>';
@@ -318,7 +341,7 @@ visible.sort(rank);
 const bandCount=visible.filter(x=>Number(x.rate)<100).length;
 const perfectRows=visible.filter(x=>Number(x.rate)===100);
 document.getElementById('tbody').innerHTML=visible.map(x=>`<tr><td><span class="player" style="color:${playerColor(x.team)}">${esc(x.player)}</span><span class="sub">${esc(x.position)} · ${esc(x.team)}</span></td><td><span class="teamtag">${esc(x.team)}</span></td><td>${esc(x.position)}</td><td>${esc(x.matchup)}</td><td><span class="prop">${esc(x.threshold)}+ ${esc(x.stat)}</span>${marketFor(x)?'<span class="sub">Kalshi · price ≤75¢ verified</span>':'<span class="sub">Statistical research only · not a vetted bet</span>'}</td><td class="avg">${Number(x.avg).toFixed(1)}</td><td class="record">${x.hits}/${x.games}</td><td><span class="hit ${Number(x.rate)>=90?'hit-good':'hit-bad'}">${Number(x.rate).toFixed(Number(x.rate)%1?1:0)}%</span></td><td>${recentText(x)}</td><td>${marketFor(x)?esc(marketFor(x).priceCents)+'¢ Yes<span class="sub">Kalshi · '+esc(marketFor(x).spreadCents)+'¢ spread</span>':'No value-qualified live listing'}</td><td>${statSource(x)+(marketFor(x)?'<span class="sub"><a class="source-link" href="'+esc(marketFor(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Kalshi market</a> · checked '+esc(new Date(marketFor(x).observedAt).toLocaleString())+'</span>':'<span class="sub">No qualifying live price (≤75¢)</span>')}</td><td><button class="profile-link" data-profile="${esc(propKey(x))}" type="button"><span class="research-score">${researchScore(x).total}/100</span> · Details</button><span class="role-estimate">${x.starterVerified===true?'Verified prior starter':'Role estimate'}</span></td><td><button class="watch-toggle" data-watch="${esc(propKey(x))}" type="button" aria-label="Toggle watchlist">${watchlist.includes(propKey(x))?'★':'☆'}</button></td></tr>`).join('');
-document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} starter-candidate core props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · highest hit rate first`;document.getElementById('footCount').textContent=`${visible.length.toLocaleString()} curated props shown · 300 maximum`;
+document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} depth-chart/role-qualified props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · highest hit rate first`;document.getElementById('footCount').textContent=`${visible.length.toLocaleString()} curated props shown · 300 maximum`;
 const people=[...new Map(visible.map(x=>[x.player+'|'+x.team,x])).values()];document.getElementById('mPlayers').textContent=people.length.toLocaleString();document.getElementById('mProps').textContent=visible.length.toLocaleString();document.getElementById('mSample').textContent=pool.length?pool.reduce((n,x)=>Math.max(n,Number(x.games)||0),0)+' games':'—';document.getElementById('mGames').textContent=games.length.toLocaleString();
 }
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
@@ -327,6 +350,16 @@ function parseCSV(text){const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).fi
 async function loadFeed(){const request=++loadId,chosenSport=sport,prefix=sport==='NFL'?'./data/nfl_':'./data/';try{const res=await fetch(prefix+'props.json?ts='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(request!==loadId)return;if(data.status!=='ok'||data.verified!==true||!Array.isArray(data.rows)||!data.rows.length)throw Error(data.notes||'First scan has not completed');meta=data;games=data.schedule||[];rows=data.rows;manual=false;
 try{const mr=await fetch(prefix+'markets.json?ts='+Date.now(),{cache:'no-store'});if(!mr.ok)throw Error('Market feed HTTP '+mr.status);const received=await mr.json();if(request!==loadId)return;marketMeta=received;marketRows=Array.isArray(marketMeta.rows)?marketMeta.rows:[];document.getElementById('marketNotice').textContent=`Kalshi: ${marketRows.length} matched listings checked ${new Date(marketMeta.updatedAt).toLocaleString()}${marketMeta.errors?.length?' · partial coverage':''}. FanDuel: no verified feed available. ${marketFresh()?'':'Market or statistics snapshot is stale; listings hidden. '}${marketMeta.method||''}`;}catch(e){if(request!==loadId)return;marketRows=[];document.getElementById('marketNotice').textContent='Market listings unavailable: '+e.message+'. FanDuel and Kalshi availability is not inferred from custom thresholds.';}
 if(request!==loadId)return;
+injuryRows=[];injuryUpdatedAt='';depthRows=[];depthUpdatedAt='';depthCovered=[];
+try{
+ const dr=await fetch('./data/depthcharts.json?ts='+Date.now(),{cache:'no-store'});
+ if(dr.ok){
+  const data=await dr.json(),group=data[chosenSport];
+  if(group?.verified===true&&Array.isArray(group.rows)&&Array.isArray(group.coveredTeams)&&Date.now()-Date.parse(group.updatedAt)<6*60*60*1000){
+   depthRows=group.rows;depthUpdatedAt=group.updatedAt;depthCovered=group.coveredTeams;
+  }
+ }
+}catch(_){/* Fall back to historical role estimates when depth charts unavailable. */}
 injuryRows=[];injuryUpdatedAt='';
 try{
  const ir=await fetch('./data/injuries.json?ts='+Date.now(),{cache:'no-store'});
