@@ -152,7 +152,7 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(6),th:nth-child(7),
   <div class="search-row"><input class="control search" id="search" placeholder="Search player, team, opponent…" /></div>
   <div class="toolbar">
     <div class="filters">
-      <label class="date-filter-label" for="dateFilter">Game date <select class="control" id="dateFilter"><option value="">All upcoming dates</option></select></label>
+      <label class="date-filter-label" for="dateFilter">Game date <select class="control" id="dateFilter"><option value="">Next 24 hours</option></select></label>
       <select class="control" id="matchFilter"><option value="">All matchups</option></select>
       <select class="control" id="statFilter"><option value="">All stat types</option><option>Points</option><option>Rebounds</option><option>Assists</option><option>3-pointers</option><option>Steals</option><option>PRA</option><option>Points + Rebounds</option><option>Points + Assists</option><option>Rebounds + Assists</option><option>Blocks</option></select>
       <select class="control" id="teamFilter"><option value="">All teams</option></select>
@@ -199,10 +199,10 @@ function populateFilters(){
  sf.value=oldS;
  const df=document.getElementById('dateFilter'),oldD=df.value,upcoming=futureGames();
  const dates=unique(upcoming.map(gameDateCT).filter(Boolean)).sort();
- df.innerHTML='<option value="">All upcoming dates</option>'+dates.map(d=>'<option value="'+esc(d)+'">'+esc(new Date(d+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'}))+'</option>').join('');
+ df.innerHTML='<option value="">Next 24 hours</option>'+dates.map(d=>'<option value="'+esc(d)+'">'+esc(new Date(d+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'}))+'</option>').join('');
  df.value=dates.includes(oldD)?oldD:'';
  const mf=document.getElementById('matchFilter'),tf=document.getElementById('teamFilter'),oldM=mf.value,oldT=tf.value;
- const dateGames=upcoming.filter(g=>!df.value||gameDateCT(g)===df.value);
+ const dateGames=upcoming.filter(g=>df.value?gameDateCT(g)===df.value:Date.parse(g.time)<=Date.now()+24*60*60*1000);
  mf.innerHTML='<option value="">All matchups</option>'+unique(dateGames.map(g=>g.match)).map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
  mf.value=dateGames.some(g=>g.match===oldM)?oldM:'';
  tf.innerHTML='<option value="">All teams</option>'+unique(rows.map(x=>x.team)).map(t=>'<option>'+esc(t)+'</option>').join('');
@@ -370,7 +370,7 @@ function showAlertDialog(){
 
 function upcomingGameFor(team){
  const date=document.getElementById('dateFilter')?.value||'';
- return futureGames().find(g=>(g.home===team||g.away===team)&&(!date||gameDateCT(g)===date))||null;
+ return futureGames().find(g=>(g.home===team||g.away===team)&&(date?gameDateCT(g)===date:Date.parse(g.time)<=Date.now()+24*60*60*1000))||null;
 }
 function currentMatchup(x){return upcomingGameFor(x.team)?.match||'No upcoming game verified';}
 function currentGameTime(x){const g=upcomingGameFor(x.team);return g?new Date(g.time).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}):'Schedule unavailable';}
@@ -387,14 +387,14 @@ for(const x of eligible){
  if(!old||score(x)>score(old))bestByStat.set(key,x);
 }
 let out=[...bestByStat.values()];
-const rank=(a,b)=>Number(b.rate)-Number(a.rate)||Date.parse(upcomingGameFor(a.team)?.time||'9999-12-31')-Date.parse(upcomingGameFor(b.team)?.time||'9999-12-31')||Number(b.games)-Number(a.games)||Number(b.last10?.rate||0)-Number(a.last10?.rate||0)||a.player.localeCompare(b.player)||a.stat.localeCompare(b.stat);
-// Hit rate is the primary ranking (100% to 90%); earlier games break ties.
+const rank=(a,b)=>Number(b.rate)-Number(a.rate)||Number(b.games)-Number(a.games)||Number(b.last10?.rate||0)-Number(a.last10?.rate||0)||a.player.localeCompare(b.player)||a.stat.localeCompare(b.stat);
+// Hit rate is the primary ranking (100% to 90%); game time never affects order.
 // Apply the 300-row cap only after ranking all qualifying props.
 let visible=out.sort(rank).slice(0,300);
 const bandCount=visible.filter(x=>Number(x.rate)<100).length;
 const perfectRows=visible.filter(x=>Number(x.rate)===100);
 document.getElementById('tbody').innerHTML=visible.map(x=>`<tr><td><span class="player" style="color:${playerColor(x.team)}">${esc(x.player)}</span><span class="sub">${esc(x.position)} · ${esc(x.team)}</span></td><td class="role-cell">${roleCell(x)}</td><td><span class="teamtag">${esc(x.team)}</span></td><td>${esc(x.position)}</td><td>${esc(currentMatchup(x))}<span class="sub">${esc(currentGameTime(x))}</span></td><td><span class="prop">${esc(x.threshold)}+ ${esc(x.stat)}</span>${marketFor(x)?'<span class="sub">Kalshi · price ≤75¢ verified</span>':'<span class="sub">Statistical research only · not a vetted bet</span>'}</td><td class="avg">${Number(x.avg).toFixed(1)}</td><td class="record">${x.hits}/${x.games}</td><td><span class="hit ${Number(x.rate)>=90?'hit-good':'hit-bad'}">${Number(x.rate).toFixed(Number(x.rate)%1?1:0)}%</span></td><td>${recentText(x)}</td><td>${marketFor(x)?esc(marketFor(x).priceCents)+'¢ Yes<span class="sub">Kalshi · '+esc(marketFor(x).spreadCents)+'¢ spread</span>':'No value-qualified live listing'}</td><td>${statSource(x)+(marketFor(x)?'<span class="sub"><a class="source-link" href="'+esc(marketFor(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Kalshi market</a> · checked '+esc(new Date(marketFor(x).observedAt).toLocaleString())+'</span>':'<span class="sub">No qualifying live price (≤75¢)</span>')}</td><td><button class="profile-link" data-profile="${esc(propKey(x))}" type="button"><span class="research-score">${researchScore(x).total}/100</span> · Details</button><span class="role-estimate">${esc(playerRole(x).label)}</span></td><td><button class="watch-toggle" data-watch="${esc(propKey(x))}" type="button" aria-label="Toggle watchlist">${watchlist.includes(propKey(x))?'★':'☆'}</button></td></tr>`).join('');
-document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} depth-chart/role-qualified props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · highest hit rate first (earlier games break ties)`;document.getElementById('footCount').textContent=`${visible.length.toLocaleString()} curated props shown · 300 maximum · highest hit rate first`;
+document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} depth-chart/role-qualified props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · highest hit rate first · next 24 hours by default`;document.getElementById('footCount').textContent=`${visible.length.toLocaleString()} curated props shown · 300 maximum · highest hit rate first`;
 const people=[...new Map(visible.map(x=>[x.player+'|'+x.team,x])).values()];document.getElementById('mPlayers').textContent=people.length.toLocaleString();document.getElementById('mProps').textContent=visible.length.toLocaleString();document.getElementById('mSample').textContent=pool.length?pool.reduce((n,x)=>Math.max(n,Number(x.games)||0),0)+' games':'—';document.getElementById('mGames').textContent=games.length.toLocaleString();
 }
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
