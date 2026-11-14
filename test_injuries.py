@@ -1,4 +1,6 @@
 import unittest
+import datetime as dt
+NOW=dt.datetime.now(dt.timezone.utc).isoformat()
 from update_injuries import parse,normalized_status
 
 class InjuryParserTests(unittest.TestCase):
@@ -8,7 +10,7 @@ class InjuryParserTests(unittest.TestCase):
         self.assertIsNone(normalized_status('not-a-designation'))
     def test_parse_source_rows(self):
         data={'injuries':[{'team':{'abbreviation':'GS'},'injuries':[
-            {'athlete':{'displayName':'Example Player'},'status':'Out','details':{'type':'Ankle'}},
+            {'athlete':{'displayName':'Example Player'},'status':'Out','date':NOW,'details':{'type':'Ankle'}},
             {'athlete':{'displayName':'Unknown Player'},'status':'Unknown'}]}]}
         rows=parse(data,'NBA','https://example.com')
         self.assertEqual(len(rows),1)
@@ -16,7 +18,7 @@ class InjuryParserTests(unittest.TestCase):
         self.assertEqual(rows[0]['status'],'Out')
     def test_actual_espn_schema(self):
         data={'injuries':[{'id':'22','displayName':'Arizona Cardinals','injuries':[
-            {'athlete':{'displayName':'Sample Receiver'},'status':'Questionable','shortComment':'Hamstring'}]}]}
+            {'athlete':{'displayName':'Sample Receiver'},'status':'Questionable','date':NOW,'shortComment':'Hamstring'}]}]}
         rows=parse(data,'NFL','https://example.com',{'22':'ARI'})
         self.assertEqual(rows[0]['team'],'ARI')
         self.assertEqual(rows[0]['detail'],'Hamstring')
