@@ -34,7 +34,14 @@ def parse(payload,sport,url,team_map=None):
             if not name or not status: continue
             detail=entry.get('shortComment') or entry.get('details') or {}
             if isinstance(detail,dict): detail=detail.get('detail') or detail.get('type') or detail.get('side') or ''
-            result.append({'player':name,'team':abbr,'status':status,'detail':str(detail)[:600],
+            report_date=entry.get('date')
+            if not report_date: continue
+            try:
+                age=dt.datetime.now(dt.timezone.utc)-dt.datetime.fromisoformat(report_date.replace('Z','+00:00'))
+            except (TypeError,ValueError): continue
+            max_age=dt.timedelta(days=30 if status=='Injured Reserve' else 7)
+            if age>max_age or age<dt.timedelta(days=-1): continue
+            result.append({'player':name,'team':abbr,'status':status,'reportDate':report_date,'detail':str(detail)[:600],
                            'source':'ESPN injury listing','sourceUrl':url})
     if len(result)>1500: raise ValueError('Unexpected injury volume')
     return result
