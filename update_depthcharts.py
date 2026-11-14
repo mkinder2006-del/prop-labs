@@ -13,8 +13,6 @@ def parse_depthchart(payload,sport,team,source):
     if not isinstance(payload.get('depthchart'),list): raise ValueError('Missing depthchart array')
     rows=[]
     for chart in payload['depthchart']:
-        if sport=='NFL' and not any(x in str(chart.get('name','')).lower() for x in ('offense','offensive','base 11','base 12','base 21')):
-            continue
         for position,group in (chart.get('positions') or {}).items():
             position=position.lower()
             if position not in (NBA_POS if sport=='NBA' else NFL_POS):continue
