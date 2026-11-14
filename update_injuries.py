@@ -78,7 +78,10 @@ def main():
             base=url.rsplit('/',1)[0]
             try:
                 sample=fetch_json(base+'/teams/1/depthcharts')
-                print(f'{sport} depthchart sample: {json.dumps(sample,ensure_ascii=False)[:2200]}',flush=True)
+                charts=sample.get('depthchart') or []
+                for chart in charts[:2]:
+                    for pos,group in list((chart.get('positions') or {}).items())[:5]:
+                        print(f'{sport} chart {chart.get("name")} {pos}: '+json.dumps([{k:a.get(k) for k in ('displayName','rank','slot','starter','depth','position')} for a in (group.get('athletes') or [])[:3]]),flush=True)
             except Exception as exc:
                 print(f'{sport} depthchart unavailable: {str(exc)[:120]}',flush=True)
             payload=fetch_json(url)
