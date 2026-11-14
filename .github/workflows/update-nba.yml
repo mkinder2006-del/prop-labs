@@ -36,7 +36,13 @@ jobs:
           git add data/props.json data/game_cache.json data/markets.json
           if ! git diff --cached --quiet; then
             git commit -m 'Update NBA prop data [skip ci]'
-            git pull --rebase origin main
-            git push
+            # Prefer the freshly calculated feed when another updater changed the same JSON.
+            git pull --rebase -X theirs origin main
+            for attempt in 1 2 3; do
+              if git push; then break; fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              git pull --rebase -X theirs origin main
+              sleep 3
+            done
           fi
 # Diagnostic trigger: verify scheduled NBA ingestion and market matching on 2026-11-13.
