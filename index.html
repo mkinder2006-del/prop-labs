@@ -383,17 +383,13 @@ for(const x of eligible){
 }
 let out=[...bestByStat.values()];
 const rank=(a,b)=>Date.parse(upcomingGameFor(a.team)?.time||'9999-12-31')-Date.parse(upcomingGameFor(b.team)?.time||'9999-12-31')||Number(b.rate)-Number(a.rate)||Number(b.games)-Number(a.games)||Number(b.last10?.rate||0)-Number(a.last10?.rate||0)||a.player.localeCompare(b.player)||a.stat.localeCompare(b.stat);
-// Reserve up to half the 300 slots for qualifying 90–99.9% entries, then sort the final list descending.
-const perfect=out.filter(x=>Number(x.rate)===100).sort(rank);
-const near=out.filter(x=>Number(x.rate)<100).sort(rank);
-let visible=[...perfect.slice(0,Math.min(150,Math.max(0,300-near.length))),...near.slice(0,Math.min(150,near.length))];
-const used=new Set(visible);
-visible.push(...[...perfect,...near].filter(x=>!used.has(x)).slice(0,300-visible.length));
-visible.sort(rank);
+// Prioritize earliest scheduled games, then historical hit rate within each game.
+// Limit only after chronological sorting so distant games never displace closer ones.
+let visible=out.sort(rank).slice(0,300);
 const bandCount=visible.filter(x=>Number(x.rate)<100).length;
 const perfectRows=visible.filter(x=>Number(x.rate)===100);
 document.getElementById('tbody').innerHTML=visible.map(x=>`<tr><td><span class="player" style="color:${playerColor(x.team)}">${esc(x.player)}</span><span class="sub">${esc(x.position)} · ${esc(x.team)}</span></td><td class="role-cell">${roleCell(x)}</td><td><span class="teamtag">${esc(x.team)}</span></td><td>${esc(x.position)}</td><td>${esc(currentMatchup(x))}<span class="sub">${esc(currentGameTime(x))}</span></td><td><span class="prop">${esc(x.threshold)}+ ${esc(x.stat)}</span>${marketFor(x)?'<span class="sub">Kalshi · price ≤75¢ verified</span>':'<span class="sub">Statistical research only · not a vetted bet</span>'}</td><td class="avg">${Number(x.avg).toFixed(1)}</td><td class="record">${x.hits}/${x.games}</td><td><span class="hit ${Number(x.rate)>=90?'hit-good':'hit-bad'}">${Number(x.rate).toFixed(Number(x.rate)%1?1:0)}%</span></td><td>${recentText(x)}</td><td>${marketFor(x)?esc(marketFor(x).priceCents)+'¢ Yes<span class="sub">Kalshi · '+esc(marketFor(x).spreadCents)+'¢ spread</span>':'No value-qualified live listing'}</td><td>${statSource(x)+(marketFor(x)?'<span class="sub"><a class="source-link" href="'+esc(marketFor(x).sourceUrl)+'" target="_blank" rel="noopener noreferrer">Kalshi market</a> · checked '+esc(new Date(marketFor(x).observedAt).toLocaleString())+'</span>':'<span class="sub">No qualifying live price (≤75¢)</span>')}</td><td><button class="profile-link" data-profile="${esc(propKey(x))}" type="button"><span class="research-score">${researchScore(x).total}/100</span> · Details</button><span class="role-estimate">${esc(playerRole(x).label)}</span></td><td><button class="watch-toggle" data-watch="${esc(propKey(x))}" type="button" aria-label="Toggle watchlist">${watchlist.includes(propKey(x))?'★':'☆'}</button></td></tr>`).join('');
-document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} depth-chart/role-qualified props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · soonest games first`;document.getElementById('footCount').textContent=`${visible.length.toLocaleString()} curated props shown · 300 maximum`;
+document.getElementById('empty').hidden=visible.length!==0;document.getElementById('resultLabel').textContent=`${visible.length} depth-chart/role-qualified props (300 max) · ${perfectRows.length} at 100% · ${bandCount} at 90–99.9% · soonest games first`;document.getElementById('footCount').textContent=`${visible.length.toLocaleString()} curated props shown · 300 maximum · soonest games first`;
 const people=[...new Map(visible.map(x=>[x.player+'|'+x.team,x])).values()];document.getElementById('mPlayers').textContent=people.length.toLocaleString();document.getElementById('mProps').textContent=visible.length.toLocaleString();document.getElementById('mSample').textContent=pool.length?pool.reduce((n,x)=>Math.max(n,Number(x.games)||0),0)+' games':'—';document.getElementById('mGames').textContent=games.length.toLocaleString();
 }
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
