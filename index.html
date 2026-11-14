@@ -218,8 +218,7 @@ function roleCandidates(){
     });
     // Only allow rank 2+ when rank 1 is verified unavailable.
     if(chosen&&(chosen.rank===1||entries.slice(0,entries.findIndex(z=>z===chosen)).every(item=>{
-      const first=players.find(p=>p.player.toLowerCase()===item.player.toLowerCase());
-      return first&&unavailable(first);
+      return unavailable({player:item.player,team});
     })))approved.add(team+'|'+chosen.player);
    }
    continue;
