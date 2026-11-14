@@ -49,6 +49,7 @@ def main():
             req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; PropLabs/1.0)','Accept':'application/json'})
             with urllib.request.urlopen(req,timeout=25) as response:
                 payload=json.load(response)
+            print(f'{sport} schema: root keys={list(payload)[:12]}, injuries_count={len(payload.get("injuries") or [])}; sample={json.dumps((payload.get("injuries") or [])[:1],ensure_ascii=False)[:1500]}',flush=True)
             rows=parse(payload,sport,url)
             if not rows:
                 raise ValueError('No individual designations returned; injury coverage cannot be verified')
