@@ -75,6 +75,12 @@ def main():
     output={}
     for sport,url in SOURCES.items():
         try:
+            base=url.rsplit('/',1)[0]
+            try:
+                sample=fetch_json(base+'/teams/1/depthcharts')
+                print(f'{sport} depthchart sample: {json.dumps(sample,ensure_ascii=False)[:2200]}',flush=True)
+            except Exception as exc:
+                print(f'{sport} depthchart unavailable: {str(exc)[:120]}',flush=True)
             payload=fetch_json(url)
             team_map=fetch_teams(sport)
             rows=parse(payload,sport,url,team_map)
