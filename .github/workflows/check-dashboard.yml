@@ -1,0 +1,32 @@
+name: Validate Prop Labs dashboard
+on:
+  push:
+    paths:
+      - index.html
+      - .github/workflows/check-dashboard.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check inline JavaScript syntax and required controls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',html)
+          assert scripts, 'No inline JavaScript found'
+          for i,source in enumerate(scripts):
+              Path(f'/tmp/prop-labs-inline-{i}.js').write_text(source)
+          for marker in ('id="researchDialog"','id="watchOnly"','id="showAlerts"','data-profile','data-watch','function researchScore','function recordAlerts'):
+              assert marker in html, f'Missing feature: {marker}'
+          print(f'Validated {len(scripts)} script blocks and research controls')
+          PY
+          for f in /tmp/prop-labs-inline-*.js; do node --check "$f"; done
