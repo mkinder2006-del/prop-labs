@@ -146,10 +146,26 @@ def main():
     matchups={}
     for g in sorted(upcoming,key=lambda e:e['time']):
         for t in (g['away'],g['home']): matchups.setdefault(t,g['match'])
+    # Snap-count evidence: only the leading active player in each team/position group.
+    # This is not an official injury or depth-chart confirmation.
+    latest_by_team_role=defaultdict(list)
+    for games in histories.values():
+        latest=games[-1]
+        role='RB' if latest['position'] in ('RB','FB','HB') else latest['position']
+        if role in ('QB','RB','WR','TE'):
+            recent=games[-3:]
+            latest_by_team_role[(latest['team'],role)].append((sum(p.get('offenseSnaps',0) for p in recent)/len(recent),latest['id']))
+    leaders={}
+    for key,candidates in latest_by_team_role.items():
+        candidates.sort(reverse=True)
+        if len(candidates)==1 or candidates[0][0]>candidates[1][0]:
+            leaders[key]=candidates[0][1]
     rows=[]
     for games in histories.values():
         latest=games[-1]
         if latest['team'] in blocked: continue
+        role='RB' if latest['position'] in ('RB','FB','HB') else latest['position']
+        starter_verified=role in ('QB','RB','WR','TE') and leaders.get((latest['team'],role))==latest['id'] and latest.get('offenseSnaps',0)>0
         for key,label in LABELS.items():
             if key.startswith('PASS') and latest['position']!='QB': continue
             vals=[p[key] for p in games]
@@ -162,6 +178,7 @@ def main():
                     return {'hits':count,'games':len(sample),'rate':round(100*count/len(sample),1)}
                 rows.append({'player':latest['player'],'team':latest['team'],'position':latest['position'],
                   'matchup':matchups.get(latest['team'],'—'),'stat':label,'threshold':threshold,
+                  'starterVerified':starter_verified,'starterEvidence':'Leading recent offensive snap count at position; not an official depth chart' if starter_verified else 'Secondary or unconfirmed role',
                   'games':len(vals),'hits':hits,'rate':rate,'avg':round(sum(vals)/len(vals),1),
                   'last5':recent_record(5),'last10':recent_record(10),'last20':recent_record(20),
                   'sourceUrl':'https://www.nfl.com/players/',
