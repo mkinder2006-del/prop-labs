@@ -50,6 +50,8 @@ def main():
             with urllib.request.urlopen(req,timeout=25) as response:
                 payload=json.load(response)
             rows=parse(payload,sport,url)
+            if not rows:
+                raise ValueError('No individual designations returned; injury coverage cannot be verified')
             output[sport]={'verified':True,'updatedAt':now,'rows':rows,'sourceUrl':url,
                            'note':'ESPN injury listings, not official game-day starter confirmation. Missing entry does not mean healthy.'}
             print(f'{sport}: {len(rows)} ESPN injury designations')
